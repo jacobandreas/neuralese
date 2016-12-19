@@ -87,3 +87,9 @@ ENV/
 
 # Rope project settings
 .ropeproject
+
+# vim
+*.sw[po]
+
+# cached data
+data/*.npy
