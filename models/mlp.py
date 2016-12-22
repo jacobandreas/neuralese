@@ -14,8 +14,11 @@ class MlpModel(object):
         with tf.variable_scope("speaker"):
             t_speaker_input = tf.concat(1, (t_in_target, t_in_distractor))
             t_code, v_speaker = net.mlp(t_speaker_input, (n_hidden, n_code), final_nonlinearity=True)
+            t_code = tf.nn.l2_normalize(t_code, 1)
 
-        t_transmitted_code = t_code + tf.random_normal(t_code.get_shape(), stddev=2)
+        t_transmitted_code = t_code + tf.random_normal(t_code.get_shape(),
+                stddev=0.5)
+        #t_transmitted_code = t_code
 
         with tf.variable_scope("listener"):
             t_listener_input = tf.concat(1, (t_in_left, t_in_right, t_transmitted_code))

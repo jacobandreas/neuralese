@@ -92,4 +92,4 @@ ENV/
 *.sw[po]
 
 # cached data
-data/*.npy
+data/
