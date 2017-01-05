@@ -1,4 +1,4 @@
-from batch import Batch
+from struct import Batch
 
 from collections import defaultdict
 import numpy as np

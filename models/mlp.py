@@ -14,7 +14,9 @@ class MlpModel(object):
         with tf.variable_scope("speaker"):
             t_speaker_input = tf.concat(1, (t_in_target, t_in_distractor))
             t_code, v_speaker = net.mlp(t_speaker_input, (n_hidden, n_code), final_nonlinearity=True)
-            t_code = tf.nn.l2_normalize(t_code, 1)
+            #t_code = tf.nn.l2_normalize(t_code, 1)
+            t_norm = tf.reduce_sum(tf.square(t_code), reduction_indices=(1,))
+            t_norm_err = tf.maximum(0., t_norm - 1)
 
         t_transmitted_code = t_code + tf.random_normal(t_code.get_shape(),
                 stddev=0.5)
@@ -24,7 +26,13 @@ class MlpModel(object):
             t_listener_input = tf.concat(1, (t_in_left, t_in_right, t_transmitted_code))
             t_guess, v_listener = net.mlp(t_listener_input, (n_hidden, 2))
 
-        t_loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(t_guess, t_label))
+        t_loss = (
+                tf.reduce_mean(
+                    tf.nn.sparse_softmax_cross_entropy_with_logits(
+                        t_guess, t_label)
+                    + t_norm_err
+                ))
+
         t_acc = tf.reduce_mean(tf.cast(tf.nn.in_top_k(t_guess, t_label, 1), tf.float32))
 
         optimizer = tf.train.AdamOptimizer(0.0003)

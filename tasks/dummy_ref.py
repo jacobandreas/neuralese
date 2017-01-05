@@ -1,4 +1,4 @@
-from batch import Batch
+from struct import Batch
 
 import numpy as np
 

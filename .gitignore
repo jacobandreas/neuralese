@@ -93,3 +93,7 @@ ENV/
 
 # cached data
 data/
+
+# experiment transients
+saves/
+logs/

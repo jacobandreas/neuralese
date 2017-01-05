@@ -1,4 +1,4 @@
-from batch import Batch
+from struct import Batch
 from data.color import munroecorpus
 
 import numpy as np
@@ -37,6 +37,7 @@ class ColorRefTask(object):
 
         self.n_examples = len(self.colors)
         self.n_features = 3
+        self.n_candidates = 2
 
     def get_batch(self, batch_size):
         indices = self.random.randint(self.n_examples, size=(batch_size, 2))
