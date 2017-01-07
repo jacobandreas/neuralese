@@ -1,18 +1,19 @@
 name: color-ref_comm
 
 task: 
-  name: ColorRefTask
+  name: LockTask
 
 channel:
   name: GaussianChannel
-  n_msg: 8
+  n_msg: 32
   std: 0.5
 
 model: 
   name: RecurrentQModel
-  n_hidden: 100
+  n_hidden: 256
   communicate: true
   discount: 0.9
+  #step_size: 0.003
   step_size: 0.0003
 
 translator:
@@ -23,10 +24,10 @@ experiment:
   translate: true
 
 trainer:
-  n_replay_episodes: 1000
-  n_batch_episodes: 100
+  n_replay_episodes: 500
+  n_batch_episodes: 256
   n_batch_history: 10
   n_timeout: 100
   good_fraction: 0.2
-  n_iters: 200
+  n_iters: 100000
   n_update_iters: 100

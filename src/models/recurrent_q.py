@@ -61,3 +61,5 @@ class RecurrentQModel(object):
         self.t_train_op = optimizer.minimize(t_loss, var_list=v_net)
         self.oo_update_target = [
                 vn.assign(v) for v, vn in zip(v_net, v_net_next)]
+
+        self.v_net = v_net

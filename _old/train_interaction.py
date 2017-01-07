@@ -3,7 +3,7 @@
 import tasks.cards
 import tasks.lock
 import tasks.echo
-from tasks.data import Transition
+from tasks.struct import Transition
 import models.dqn
 
 from collections import namedtuple
@@ -17,16 +17,22 @@ N_HISTORY = 10
 N_HIDDEN = 256
 N_CODE = 32
 
-NAME = "indep_cards"
-COMMUNICATE = False
+NAME = "comm_lock"
+COMMUNICATE = True
 
-task = tasks.cards.CardsTask()
-#task = tasks.lock.LockTask()
+tf.set_random_seed(0)
+random = np.random.RandomState(0)
+
+#task = tasks.cards.CardsTask()
+task = tasks.lock.LockTask()
 #task = tasks.echo.EchoTask()
 model = models.dqn.DqnModel(
         task, N_BATCH, N_HISTORY, N_HIDDEN, N_CODE, communicate=COMMUNICATE)
 session = tf.Session()
 session.run(tf.global_variables_initializer())
+for v in model.v:
+    print v.name, session.run([v])[0].sum()
+#exit()
 
 replay = []
 good_replay = []
@@ -48,7 +54,7 @@ def do_rollout():
     for i in range(100):
         action_a, action_b, rnn_hidden_a_, rnn_hidden_b_, rnn_comm_a_, rnn_comm_b_ = (
                 session.run(
-                    [model.t_act_a, model.t_act_b, 
+                    [model.t_act_q_a, model.t_act_q_b, 
                         model.t_act_next_hidden_a, model.t_act_next_hidden_b,
                         model.t_act_next_comm_a, model.t_act_next_comm_b
                     ],
@@ -68,20 +74,26 @@ def do_rollout():
         rnn_comm_a = rnn_comm_a_
         rnn_comm_b = rnn_comm_b_
 
-        action_a = action_a[0]
-        action_b = action_b[0]
+        #action_a = action_a[0]
+        #action_b = action_b[0]
 
         eps = max((1000. - i_iter) / 1000., 0.1)
-        if np.random.random() < eps:
-            action_a = np.random.randint(task.n_actions)
-        if np.random.random() < eps:
-            action_b = np.random.randint(task.n_actions)
+        #eps = 1
+        if random.rand() < eps:
+            action_a = random.randint(task.n_actions)
+        else:
+            action_a = np.argmax(action_a[0, :])
+        if random.rand() < eps:
+            action_b = random.randint(task.n_actions)
+        else:
+            action_b = np.argmax(action_b[0, :])
 
         state_, reward, stop = state.step(action_a, action_b)
         transitions.append(Transition(state, mstate, (action_a, action_b),
                 state_, mstate_, reward, stop))
         state = state_
         mstate = mstate_
+
         if stop:
             break
     replay.append(transitions)
@@ -143,14 +155,33 @@ def train_step():
             model.t_state1_b: state1_b,
             model.t_state2_a: state2_a,
             model.t_state2_b: state2_b,
-            model.t_init_mstate1: (hidden1_a, hidden1_b, comm1_a, comm1_b),
-            model.t_init_mstate2: (hidden2_a, hidden2_b, comm2_a, comm2_b),
+            model.t_init_mstate1: ((hidden1_a, hidden1_b), (comm1_a, comm1_b)),
+            model.t_init_mstate2: ((hidden2_a, hidden2_b), (comm2_a, comm2_b)),
             model.t_action_a: action_a,
             model.t_action_b: action_b,
             model.t_reward: reward,
             model.t_terminal: terminal,
             model.t_mask: mask
         })
+
+    feed = {
+            model.t_state1_a: state1_a,
+            model.t_state1_b: state1_b,
+            model.t_state2_a: state2_a,
+            model.t_state2_b: state2_b,
+            model.t_init_mstate1: ((hidden1_a, hidden1_b), (comm1_a, comm1_b)),
+            model.t_init_mstate2: ((hidden2_a, hidden2_b), (comm2_a, comm2_b)),
+            model.t_action_a: action_a,
+            model.t_action_b: action_b,
+            model.t_reward: reward,
+            model.t_terminal: terminal,
+            model.t_mask: mask
+        }
+
+    #for k, f in feed.items():
+    #    if hasattr(f, "shape") and f.shape == (256, 10):
+    #        print k.name, np.mean(f)
+    #print
 
     return m_loss
 

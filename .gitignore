@@ -97,3 +97,5 @@ data/
 # experiment transients
 saves/
 logs/
+experiments/
+*.lprof

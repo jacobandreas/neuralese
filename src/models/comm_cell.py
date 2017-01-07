@@ -53,9 +53,11 @@ class CommCell(tf.nn.rnn_cell.RNNCell):
             else:
                 # for fair comparison, let non-communicating agents use the
                 # extra channel capacity for themselves
-                base_cell = tf.nn.rnn_cell.GRUCell(
-                        self.n_hidden + self.n_comm * (self.n_agents - 1))
-                features.append(inputs[i_agent])
+                #base_cell = tf.nn.rnn_cell.GRUCell(
+                #        self.n_hidden + self.n_comm * (self.n_agents - 1))
+                base_cell = tf.nn.rnn_cell.GRUCell(self.n_hidden)
+                for i_agent in range(self.n_agents):
+                    features.append(inputs[i_agent])
 
             next_states = []
             next_comms = []

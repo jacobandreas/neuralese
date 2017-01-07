@@ -12,6 +12,7 @@ import trainer
 import lexicographer
 
 import logging
+import numpy as np
 import os
 import sys
 import tensorflow as tf
@@ -41,6 +42,8 @@ def main():
         lexicographer.run()
 
 def configure():
+    tf.set_random_seed(0)
+
     # load config
     with open("config.yaml") as config_f:
         config = Struct(**yaml.load(config_f))
