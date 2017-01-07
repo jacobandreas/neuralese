@@ -220,6 +220,9 @@ class DqnModel(object):
         self.t_act_q_a = t_act_q_a
         self.t_act_q_b = t_act_q_b
 
+        self.t_q_a = t_q_a_target
+        self.t_q_b = t_q_b
+
         t_td_a = (
             DISCOUNT * tf.reduce_max(t_q_a_target, axis=2) * (1 - reph.t_terminal)
             + reph.t_reward
@@ -233,6 +236,8 @@ class DqnModel(object):
         self.t_loss = (
                 tf.reduce_mean(reph.t_mask * tf.square(t_td_a))
                 + tf.reduce_mean(reph.t_mask * tf.square(t_td_b)))
+
+        self.t_td_a = t_td_a
 
         optimizer = tf.train.AdamOptimizer(0.0003)
 
@@ -255,7 +260,7 @@ class DqnModel(object):
         self.t_terminal = reph.t_terminal
         self.t_mask = reph.t_mask
 
-        self.v = v
+        self.v = v_target
 
         self.t_act_hidden_a = roph.t_h[0]
         self.t_act_hidden_b = roph.t_h[1]

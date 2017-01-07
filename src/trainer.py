@@ -14,10 +14,6 @@ def run(task, rollout_ph, replay_ph, model, session, config):
 
     session.run(tf.global_variables_initializer())
 
-    for v in model.v_net:
-        print v.name, session.run([v])[0].sum()
-    exit()
-
     total_score = 0.
     total_loss = 0.
     h0, z0, _ = session.run(model.zero_state(1, tf.float32))
@@ -58,8 +54,7 @@ def _do_rollout(
                 [model.tt_rollout_h, model.tt_rollout_z, model.tt_rollout_q],
                 rollout_ph.feed(hs, zs, world))
         actions = []
-        #eps = max((1000. - i_iter) / 1000., 0.1)
-        eps = 1
+        eps = max((1000. - i_iter) / 1000., 0.1)
         for q in qs:
             q = q[0, :]
             # TODO configurable
@@ -90,20 +85,15 @@ def _do_rollout(
 
 #@profile
 def _do_step(task, replay_ph, model, replay, good_replay, session, config):
-    #n_good = int(config.trainer.n_batch_episodes * config.trainer.good_fraction)
-    #n_any = config.trainer.n_batch_episodes - n_good
-    #if len(replay) < n_any or len(good_replay) < n_good:
-    #    return [0]
-    #episodes = []
-    #for _ in range(n_good):
-    #    episodes.append(good_replay[random.randint(len(good_replay))])
-    #for _ in range(n_any):
-    #    episodes.append(replay[random.randint(len(replay))])
-    experiences = replay + good_replay
-    if len(experiences) < 100:
+    n_good = int(config.trainer.n_batch_episodes * config.trainer.good_fraction)
+    n_any = config.trainer.n_batch_episodes - n_good
+    if len(replay) < n_any or len(good_replay) < n_good:
         return [0]
-    episodes = [experiences[random.randint(len(experiences))] for _ in
-        range(config.trainer.n_batch_episodes)]
+    episodes = []
+    for _ in range(n_good):
+        episodes.append(good_replay[random.randint(len(good_replay))])
+    for _ in range(n_any):
+        episodes.append(replay[random.randint(len(replay))])
 
     slices = []
     for ep in episodes:
@@ -112,10 +102,6 @@ def _do_step(task, replay_ph, model, replay, good_replay, session, config):
         slices.append(sl)
 
     feed = replay_ph.feed(slices, task, config)
-    for k, f in feed.items():
-        if hasattr(f, "shape") and f.shape == (256, 10):
-            print k.name, np.mean(f)
-    print
 
     loss, _ = session.run(
             [model.t_loss, model.t_train_op], 

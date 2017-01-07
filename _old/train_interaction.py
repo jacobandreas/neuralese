@@ -79,6 +79,7 @@ def do_rollout():
 
         eps = max((1000. - i_iter) / 1000., 0.1)
         #eps = 1
+        #eps = 0
         if random.rand() < eps:
             action_a = random.randint(task.n_actions)
         else:
@@ -99,6 +100,8 @@ def do_rollout():
     replay.append(transitions)
     if sum(max(t.r, 0) for t in transitions) > 0:
         good_replay.append(transitions)
+
+    #print [t.a for t in transitions[:5]]
 
     del replay[:-500]
     del good_replay[:-500]
@@ -129,10 +132,15 @@ def train_step():
     terminal = np.zeros((N_BATCH, N_HISTORY))
     mask = np.zeros((N_BATCH, N_HISTORY))
 
+
+    episodes = [experiences[random.randint(len(experiences))] for _ in
+            range(N_BATCH)]
+
     for i in range(N_BATCH):
-        i_episode = np.random.randint(len(experiences))
-        ep = experiences[i_episode]
-        i_offset = np.random.randint(len(ep))
+        #i_episode = random.randint(len(experiences))
+        #ep = experiences[i_episode]
+        ep = episodes[i]
+        i_offset = random.randint(len(ep))
         tr = ep[i_offset:i_offset+N_HISTORY]
         assert sum(tr_.r for tr_ in tr) <= 1
         hidden1_a[i, :], hidden1_b[i, :], comm1_a[i, :], comm1_b[i, :] = tr[0].m1
@@ -148,22 +156,6 @@ def train_step():
             terminal[i, j] = tr[j].term
             mask[i, j] = 1
 
-    m_loss, _ = session.run(
-        [model.t_loss, model.t_train_op],
-        {
-            model.t_state1_a: state1_a,
-            model.t_state1_b: state1_b,
-            model.t_state2_a: state2_a,
-            model.t_state2_b: state2_b,
-            model.t_init_mstate1: ((hidden1_a, hidden1_b), (comm1_a, comm1_b)),
-            model.t_init_mstate2: ((hidden2_a, hidden2_b), (comm2_a, comm2_b)),
-            model.t_action_a: action_a,
-            model.t_action_b: action_b,
-            model.t_reward: reward,
-            model.t_terminal: terminal,
-            model.t_mask: mask
-        })
-
     feed = {
             model.t_state1_a: state1_a,
             model.t_state1_b: state1_b,
@@ -178,11 +170,51 @@ def train_step():
             model.t_mask: mask
         }
 
-    #for k, f in feed.items():
-    #    if hasattr(f, "shape") and f.shape == (256, 10):
-    #        print k.name, np.mean(f)
-    #print
+    #print feed[model.t_action_a][..., 0].mean()
+    #print feed[model.t_state1_a][..., 0].mean()
+    #print feed[model.t_state2_a][..., 0].mean()
 
+    ### for k, f in feed.items():
+    ###     try:
+    ###         print k.name, 
+    ###         print np.asarray(f).shape, 
+    ###         if k in (model.t_state1_a, model.t_state1_b, model.t_state2_a,
+    ###                 model.t_state2_b, model.t_action_a, model.t_action_b):
+    ###             print np.mean(f[..., 0])
+    ###         else:
+    ###             print np.mean(f)
+    ###     except Exception as e:
+    ###         print e
+    ###     #if hasattr(f, "shape") and f.shape == (256, 10):
+    ###     #    print k.name, np.mean(f)
+
+    #print
+    #print m_loss
+    #exit()
+
+    #print action_a.mean(axis=0)
+    #exit()
+
+    m_loss, _, q = session.run(
+        [model.t_loss, model.t_train_op, model.t_q_a],
+        {
+            model.t_state1_a: state1_a,
+            model.t_state1_b: state1_b,
+            model.t_state2_a: state2_a,
+            model.t_state2_b: state2_b,
+            model.t_init_mstate1: ((hidden1_a, hidden1_b), (comm1_a, comm1_b)),
+            model.t_init_mstate2: ((hidden2_a, hidden2_b), (comm2_a, comm2_b)),
+            model.t_action_a: action_a,
+            model.t_action_b: action_b,
+            model.t_reward: reward,
+            model.t_terminal: terminal,
+            model.t_mask: mask
+        })
+
+
+    print q[0, ...]
+    print m_loss
+    exit()
     return m_loss
 
 total_score = 0.

@@ -69,12 +69,13 @@ class LockTask(object):
         self.board = np.zeros((5, 5))
         self.n_features = self.board.shape[0] * self.board.shape[1] * 2
         self.n_actions = 5
+        self.random = np.random.RandomState(0)
 
     def get_instance(self):
         def get_free(board, excluded):
             while True:
-                r = np.random.randint(board.shape[0])
-                c = np.random.randint(board.shape[1])
+                r = self.random.randint(board.shape[0])
+                c = self.random.randint(board.shape[1])
                 if board[r, c] == 1:
                     continue
                 if (r, c) in excluded:

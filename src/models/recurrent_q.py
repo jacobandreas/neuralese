@@ -26,7 +26,7 @@ class RecurrentQModel(object):
             v_net = tf.get_collection(
                     tf.GraphKeys.GLOBAL_VARIABLES, scope=scope.name)
 
-        with tf.variable_scope("net_next"):
+        with tf.variable_scope("net_next") as scope:
             tt_replay_states_next, _ = tf.nn.dynamic_rnn(
                     cell, replay_ph.t_x_next, dtype=tf.float32, scope=scope,
                     initial_state=(replay_ph.t_h_next, replay_ph.t_z_next, 
@@ -61,5 +61,3 @@ class RecurrentQModel(object):
         self.t_train_op = optimizer.minimize(t_loss, var_list=v_net)
         self.oo_update_target = [
                 vn.assign(v) for v, vn in zip(v_net, v_net_next)]
-
-        self.v_net = v_net
