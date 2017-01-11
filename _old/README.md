@@ -1,2 +1,0 @@
-# codes
-Interpreting neural codes
