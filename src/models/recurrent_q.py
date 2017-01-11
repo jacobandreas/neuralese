@@ -39,8 +39,9 @@ class RecurrentQModel(object):
 
         tt_td = []
         tt_loss = []
-        for t_q, t_q_next, t_action in zip(
-                tt_replay_q, tt_replay_q_next, replay_ph.t_action):
+        tt_comm_loss = []
+        for t_q, t_q_next, t_action, t_z in zip(
+                tt_replay_q, tt_replay_q_next, replay_ph.t_action, tt_replay_z):
             t_td = (
                 config.model.discount * tf.reduce_max(t_q_next, axis=2) 
                     * (1 - replay_ph.t_terminal)
@@ -48,8 +49,10 @@ class RecurrentQModel(object):
                 - tf.reduce_sum(t_q * t_action, axis=2))
             tt_td.append(t_td)
             tt_loss.append(tf.reduce_mean(replay_ph.t_mask * tf.square(t_td)))
+            tt_comm_loss.append(tf.reduce_mean(tf.square(t_z)))
 
-        t_loss = tf.reduce_sum(tt_loss)
+        # TODO configurable
+        t_loss = tf.reduce_sum(tt_loss) + 0.1 * tf.reduce_sum(tt_comm_loss)
 
         optimizer = tf.train.AdamOptimizer(config.model.step_size)
 

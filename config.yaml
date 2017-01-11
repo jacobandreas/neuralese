@@ -1,7 +1,9 @@
-name: color-ref_comm
+name: debug_lex
 
 task: 
-  name: LockTask
+  name: ColorRefTask
+  train: false
+  lexicon: true
 
 channel:
   name: GaussianChannel
@@ -10,24 +12,26 @@ channel:
 
 model: 
   name: RecurrentQModel
-  n_hidden: 256
+  n_hidden: 64
   communicate: true
   discount: 0.9
-  #step_size: 0.003
-  step_size: 0.0003
+  step_size: 0.003
+  load: debug
 
 translator:
-  name: BeliefTranslator
-
-experiment:
-  train: true
-  translate: true
+  name: GenBeliefTranslator
+  n_hidden: 64
+  step_size: 0.003
+  #weight_by_z: false
+  #condition_on_x: false
 
 trainer:
   n_replay_episodes: 500
   n_batch_episodes: 256
+  n_rollout_episodes: 1
   n_batch_history: 10
   n_timeout: 100
   good_fraction: 0.2
   n_iters: 100000
   n_update_iters: 100
+  n_distractors: 1

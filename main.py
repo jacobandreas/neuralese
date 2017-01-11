@@ -21,30 +21,36 @@ import yaml
 
 def main():
     config = configure()
+    session = tf.Session()
     task = tasks.load(config)
     channel = channels.load(config)
     model = models.load(config)
     translator = translators.load(config)
 
-    session = tf.Session()
     rollout_ph = experience.RolloutPlaceholders(task, config)
     replay_ph = experience.ReplayPlaceholders(task, config)
+    reconst_ph = experience.ReconstructionPlaceholders(task, config)
     channel.build(config)
     model.build(task, rollout_ph, replay_ph, channel, config)
-    translator.build(task, rollout_ph, replay_ph, channel, model, config)
+    translator.build(task, reconst_ph, channel, model, config)
 
-    if config.experiment.train:
-        trainer.run(task, rollout_ph, replay_ph, model, session, config)
+    if config.task.train:
+        trainer.run(
+                task, rollout_ph, replay_ph, reconst_ph, model, translator,
+                session, config)
     else:
         trainer.load(session, config)
 
-    if config.experiment.translate:
-        lexicographer.run()
+    if config.task.lexicon:
+        lexicographer.run(
+                task, rollout_ph, replay_ph, reconst_ph, model, translator,
+                session, config)
 
 def configure():
     tf.set_random_seed(0)
 
     # load config
+    #with open("config.yaml") as config_f:
     with open("config.yaml") as config_f:
         config = Struct(**yaml.load(config_f))
 
@@ -68,15 +74,6 @@ def configure():
     logging.info(str(config))
 
     return config
-
-def train():
-    pass
-
-def load():
-    pass
-
-def translate():
-    pass
 
 if __name__ == "__main__":
     main()

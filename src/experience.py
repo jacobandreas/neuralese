@@ -11,33 +11,96 @@ class RolloutPlaceholders(object):
         t_z = []
         t_q = []
         for i_agent in range(task.n_agents):
-            t_x.append(tf.placeholder(tf.float32, (1, task.n_features)))
-            t_h.append(tf.placeholder(tf.float32, (1, config.model.n_hidden)))
-            t_z.append(tf.placeholder(tf.float32, (1, config.channel.n_msg)))
-            t_q.append(tf.zeros((1, task.n_actions[i_agent]), tf.float32))
+            t_x.append(tf.placeholder(
+                    tf.float32, (config.trainer.n_rollout_episodes,
+                        task.n_features)))
+            t_h.append(tf.placeholder(
+                    tf.float32, (config.trainer.n_rollout_episodes,
+                        config.model.n_hidden)))
+            t_z.append(tf.placeholder(
+                    tf.float32, (config.trainer.n_rollout_episodes,
+                        config.channel.n_msg)))
+            t_q.append(tf.zeros(
+                    (config.trainer.n_rollout_episodes, task.n_actions[i_agent]),
+                    tf.float32))
         self.t_x = tuple(t_x)
         self.t_h = tuple(t_h)
         self.t_z = tuple(t_z)
         self.t_q = tuple(t_q)
 
-    def feed(self, h, z, world):
+    def feed(self, hs, zs, worlds, config):
         out = {}
-        # TODO why is this necessary?
-        out.update({t: [x] for t, x in zip(self.t_x, world.obs())})
-        out[self.t_h] = h
-        out[self.t_z] = z
+        obs = [w.obs() for w in worlds]
+        for i_t, t in enumerate(self.t_x):
+            out[t] = [
+                    obs[i][i_t] for i in range(config.trainer.n_rollout_episodes)]
+        out[self.t_h] = hs
+        out[self.t_z] = zs
         return out
+
+class ReconstructionPlaceholders(object):
+    def __init__(self, task, config):
+        self.t_xb = tf.placeholder(
+                tf.float32,
+                (config.trainer.n_batch_episodes, task.n_features))
+        self.t_z = tf.placeholder(
+                tf.float32,
+                (config.trainer.n_batch_episodes, config.channel.n_msg))
+        self.t_xa_true = tf.placeholder(
+                tf.float32,
+                (config.trainer.n_batch_episodes, task.n_features))
+        self.t_xa_noise = tf.placeholder(
+                tf.float32,
+                (config.trainer.n_batch_episodes, config.trainer.n_distractors,
+                    task.n_features))
+        self.t_desc = tf.placeholder(tf.int32,
+                (config.trainer.n_batch_episodes, task.max_desc_len))
+
+    def feed(self, experiences, obs_agent, hidden_agent, task, config):
+        xb = np.zeros((config.trainer.n_batch_episodes, task.n_features))
+        z = np.zeros((config.trainer.n_batch_episodes, config.channel.n_msg))
+        desc = np.zeros(
+                (config.trainer.n_batch_episodes, task.max_desc_len), 
+                dtype=np.int32)
+        xa_true = np.zeros((config.trainer.n_batch_episodes, task.n_features))
+        xa_noise = np.zeros(
+                (config.trainer.n_batch_episodes, config.trainer.n_distractors,
+                    task.n_features))
+
+        for i, experience in enumerate(experiences):
+            state = experience.s1
+            message = experience.m1[1][hidden_agent]
+            xb[i, :] = state.obs()[obs_agent]
+            z[i, :] = message
+            desc[i, :len(state.desc)] = state.desc
+            xa_true[i, :] = state.obs()[hidden_agent]
+            distractors = task.distractors_for(
+                    state, config.trainer.n_distractors)
+            for i_dis in range(config.trainer.n_distractors):
+                dis, prob = distractors[i_dis]
+                xa_noise[i, i_dis, :] = dis.obs()[hidden_agent]
+
+        return {
+            self.t_xb: xb,
+            self.t_z: z,
+            self.t_xa_true: xa_true,
+            self.t_xa_noise: xa_noise,
+            self.t_desc: desc
+        }
 
 class ReplayPlaceholders(object):
     def __init__(self, task, config):
-        self.t_reward = tf.placeholder(tf.float32,
-                (config.trainer.n_batch_episodes,
+        self.t_reward = tf.placeholder(
+                tf.float32,
+                (config.trainer.n_batch_episodes, 
                     config.trainer.n_batch_history))
-        self.t_terminal = tf.placeholder(tf.float32,
-                (config.trainer.n_batch_episodes,
+        self.t_terminal = tf.placeholder(
+                tf.float32,
+                (config.trainer.n_batch_episodes, 
                     config.trainer.n_batch_history))
-        self.t_mask = tf.placeholder(tf.float32,
-                (config.trainer.n_batch_episodes,
+        self.t_mask = tf.placeholder(
+                tf.float32,
+                (config.trainer.n_batch_episodes, 
                     config.trainer.n_batch_history))
 
         t_x = []
@@ -134,8 +197,8 @@ class ReplayPlaceholders(object):
                 terminal[i, j] = ep[j].t
                 mask[i, j] = 1
                 for i_agent in range(task.n_agents):
-                    x[i_agent][i, j, :] = ep[j].s1[i_agent]
-                    x_next[i_agent][i, j, :] = ep[j].s2[i_agent]
+                    x[i_agent][i, j, :] = ep[j].s1.obs()[i_agent]
+                    x_next[i_agent][i, j, :] = ep[j].s2.obs()[i_agent]
                     action[i_agent][i, j, ep[j].a[i_agent]] = 1
 
         return {
