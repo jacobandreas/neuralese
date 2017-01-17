@@ -1,13 +1,14 @@
-name: debug_lex
+name: abstract_lex
 
 task: 
-  name: ColorRefTask
+  name: AbstractRefTask
   train: false
   lexicon: true
 
 channel:
   name: GaussianChannel
-  n_msg: 32
+  n_msg: 64
+  normalize: true
   std: 0.5
 
 model: 
@@ -16,14 +17,14 @@ model:
   communicate: true
   discount: 0.9
   step_size: 0.003
-  load: debug
+  message_cost: 0
+  load: abstract_train
 
 translator:
   name: GenBeliefTranslator
   n_hidden: 64
   step_size: 0.003
-  #weight_by_z: false
-  #condition_on_x: false
+  normalization: local
 
 trainer:
   n_replay_episodes: 500

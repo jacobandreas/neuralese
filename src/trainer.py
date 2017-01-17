@@ -13,7 +13,10 @@ def run(task, rollout_ph, replay_ph, reconst_ph, model, translator, session, con
     replay = []
     good_replay = []
 
-    session.run(tf.global_variables_initializer())
+    if config.trainer.resume:
+        load(session, config)
+    else:
+        session.run(tf.global_variables_initializer())
 
     total_score = 0.
     total_loss = 0.
@@ -48,9 +51,9 @@ def load(session, config):
 #@profile
 def _do_rollout(
         task, rollout_ph, model, replay, good_replay, session, config, i_iter,
-        h0, z0):
+        h0, z0, fold="train"):
     #world = task.get_instance()
-    worlds = [task.get_instance() for _ in range(config.trainer.n_rollout_episodes)]
+    worlds = [task.get_instance(fold) for _ in range(config.trainer.n_rollout_episodes)]
     done = [False] * config.trainer.n_rollout_episodes
     episodes = [[] for i in range(config.trainer.n_rollout_episodes)]
     hs, zs = h0, z0
@@ -58,7 +61,10 @@ def _do_rollout(
         hs_, zs_, qs = session.run(
                 [model.tt_rollout_h, model.tt_rollout_z, model.tt_rollout_q],
                 rollout_ph.feed(hs, zs, worlds, config))
-        eps = max((1000. - i_iter) / 1000., 0.1)
+        eps = max(
+                (1000. - i_iter) / 1000., 
+                0.1 * (10000. - i_iter) / 10000.,
+                0.)
         for i in range(config.trainer.n_rollout_episodes):
             if done[i]:
                 continue
@@ -124,6 +130,13 @@ def _do_step(
     model_loss, _ = session.run(
             [model.t_loss, model.t_train_op], 
             replay_ph.feed(slices, task, config))
+
+    ##dn, di, dg = session.run([translator.debug_dist_norm,
+    ##    translator.debug_desc_indexed, translator.debug_gathered], reconst_ph.feed([e[0] for e in slices],
+    ##        1, 0, task, config))
+    ##print dn
+    ##print di
+    ##print dg
 
     tr_loss, _ = session.run(
             [translator.t_loss, translator.t_train_op],

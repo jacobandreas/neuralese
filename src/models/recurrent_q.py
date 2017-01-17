@@ -52,7 +52,8 @@ class RecurrentQModel(object):
             tt_comm_loss.append(tf.reduce_mean(tf.square(t_z)))
 
         # TODO configurable
-        t_loss = tf.reduce_sum(tt_loss) + 0.1 * tf.reduce_sum(tt_comm_loss)
+        t_loss = (tf.reduce_sum(tt_loss) 
+                + config.model.message_cost * tf.reduce_sum(tt_comm_loss))
 
         optimizer = tf.train.AdamOptimizer(config.model.step_size)
 

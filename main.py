@@ -50,8 +50,7 @@ def configure():
     tf.set_random_seed(0)
 
     # load config
-    #with open("config.yaml") as config_f:
-    with open("config.yaml") as config_f:
+    with open(sys.argv[1]) as config_f:
         config = Struct(**yaml.load(config_f))
 
     # set up experiment
@@ -62,8 +61,8 @@ def configure():
 
     # set up logging
     log_name = os.path.join(config.experiment_dir, "run.log")
-    #logging.basicConfig(filename=log_name, level=logging.DEBUG,
-    logging.basicConfig(stream=sys.stdout, level=logging.DEBUG,
+    logging.basicConfig(filename=log_name, level=logging.DEBUG,
+    #logging.basicConfig(stream=sys.stdout, level=logging.DEBUG,
             format='%(asctime)s %(levelname)-8s %(message)s')
     def handler(type, value, tb):
         logging.exception("Uncaught exception: %s", str(value))

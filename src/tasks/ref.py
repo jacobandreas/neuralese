@@ -40,8 +40,8 @@ class RefTask(object):
         self.symmetric = False
         self.random = np.random.RandomState(0)
 
-    def get_instance(self):
-        target, distractor, desc, left_data, right_data = self.get_pair()
+    def get_instance(self, fold):
+        target, distractor, desc, left_data, right_data = self.get_pair(fold)
         if self.random.rand() < 0.5:
             return RefState(target, distractor, 0, desc, left_data, right_data)
         else:

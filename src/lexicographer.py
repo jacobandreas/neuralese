@@ -8,29 +8,30 @@ import tensorflow as tf
 class Break(Exception):
     pass
 
-def run(
-        task, rollout_ph, replay_ph, reconst_ph, model, translator, session,
+def run(task, rollout_ph, replay_ph, reconst_ph, model, translator, session,
         config):
-    replay = []
     h0, z0, _ = session.run(model.zero_state(1, tf.float32))
-    for _ in range(config.trainer.n_batch_episodes):
-        trainer._do_rollout(
-                task, rollout_ph, model, replay, [], session, config, 10000, h0, z0)
 
+    i_rollout = 0
     codes = []
     states = []
     descs = []
-    try:
+    while len(codes) < config.trainer.n_batch_episodes:
+        replay = []
+        print trainer._do_rollout(
+                task, rollout_ph, model, replay, [], session, config, 10000, h0,
+                z0, "val")
+
         for episode in replay:
             #for experience in episode:
             for experience in episode[1:2]:
+            #for experience in episode[1:]:
                 codes.append(experience.m1[1][0])
                 states.append(experience.s1)
                 descs.append(tuple(experience.s1.desc))
-                if len(codes) >= config.trainer.n_batch_episodes:
-                    raise Break()
-    except Break:
-        pass
+        i_rollout += 1
+
+    print len(codes), len(states), len(descs)
 
     descs = set(descs)
 
@@ -58,7 +59,14 @@ def run(
             distractor_vis.append(task.visualize(dis, 0))
         vis_data["distractors"].append(distractor_vis)
 
+    all_desc_strs = []
+    all_desc_beliefs = []
+    all_desc_weights = []
     for desc in descs:
+    #for word in range(len(task.vocab)):
+    #for true_word, _ in task.freq_vocab[:100]:
+    #    word = task.vocab[true_word]
+    #    desc = [word]
         desc_data = np.zeros(
                 (config.trainer.n_batch_episodes, task.max_desc_len))
         desc_data[:, :len(desc)] = desc
@@ -68,26 +76,53 @@ def run(
             reconst_ph.t_xa_noise: xa_noise,
             reconst_ph.t_desc: desc_data
         }
-        desc_beliefs, = session.run([translator.t_desc_belief], feed)
-        #str_desc = " ".join([task.reverse_vocab[w] for w in desc[1:-1]])
-        str_desc = task.pp(desc)
-        vis_data["descs"].append(
-                {"value": str_desc, "repr": desc_beliefs.tolist()})
+        desc_beliefs, desc_weights = session.run(
+                [translator.t_desc_belief, translator.t_desc_weights], feed)
 
-    def kl(d1, d2):
+        win_count = 0
+        for row in desc_beliefs:
+            if row[0] > row[1]:
+                win_count += 1
+        #print "win", win_count
+
+        vis_desc_beliefs = desc_beliefs * desc_weights[:, np.newaxis]
+        #vis_desc_beliefs -= np.min(vis_desc_beliefs)
+        if np.max(vis_desc_beliefs) > 0:
+            vis_desc_beliefs /= np.max(vis_desc_beliefs)
+        str_desc = task.pp(desc)
+        all_desc_strs.append(str_desc)
+        all_desc_beliefs.append(desc_beliefs)
+        all_desc_weights.append(np.tile(
+                desc_weights[:, np.newaxis],
+                (1, config.trainer.n_distractors + 1)))
+        vis_data["descs"].append({
+            "value": str_desc, 
+            "repr": vis_desc_beliefs.tolist(),
+        })
+
+    def kl(d1, d2, w1, w2):
         tot = 0
-        n1 = np.asarray(d1).ravel()
-        n2 = np.asarray(d2).ravel()
-        for p1, p2 in zip(n1, n2):
-            tot += p1 * (np.log(p1) - np.log(p2))
+        for p1, p2, pw1, pw2 in zip(d1.ravel(), d2.ravel(), w1.ravel(), w2.ravel()):
+            tot += pw1 * pw2 * p1 * (np.log(p1) - np.log(p2))
+        return tot
+    
+    def tvd_global(d1, d2, w1, w2):
+        tot = 1
+        for p1, p2 in zip(d1.ravel(), d2.ravel()):
+            tot = min(tot, np.abs(p1 - p2))
         return tot
 
-    def tvd(d1, d2):
-        tot = 1
-        n1 = np.asarray(d1).ravel()
-        n2 = np.asarray(d2).ravel()
-        for p1, p2 in zip(n1, n2):
-            tot = min(tot, np.abs(p1 - p2))
+    def tvd_local(d1, d2, w1, w2):
+        tot = 0
+        for i in range(d1.shape[0]):
+            here = 1
+            for j in range(d1.shape[1]):
+                p1 = d1[i, j]
+                p2 = d2[i, j]
+                here = min(here, np.abs(p1 - p2))
+            pw1 = w1[i, 0]
+            pw2 = w2[i, 0]
+            tot += pw1 * pw2 * here
         return tot
 
     for code in codes:
@@ -98,22 +133,38 @@ def run(
             reconst_ph.t_xa_noise: xa_noise,
             reconst_ph.t_z: code_data
         }
-        model_beliefs, = session.run([translator.t_model_belief], feed)
+        model_beliefs, model_weights = session.run(
+                [translator.t_model_belief, translator.t_model_weights], feed)
+        vis_model_beliefs = model_beliefs * model_weights[:, np.newaxis]
+        #vis_model_beliefs -= np.min(vis_model_beliefs)
+        if np.max(vis_model_beliefs) > 0:
+            vis_model_beliefs /= np.max(vis_model_beliefs)
         simple_code = code.tolist()
+        r_model_weights = np.tile(
+                model_weights[:, np.newaxis],
+                (1, config.trainer.n_distractors + 1))
 
-        by_forward_kl = sorted(vis_data["descs"], key=lambda d: kl(d["repr"],
-                model_beliefs))
-        by_reverse_kl = sorted(vis_data["descs"], key=lambda d:
-                kl(model_beliefs, d["repr"]))
-        by_tvd = sorted(vis_data["descs"], key=lambda d: tvd(model_beliefs,
-                d["repr"]))
+        by_fkl = sorted(
+                range(len(all_desc_strs)), 
+                key=lambda i: kl(all_desc_beliefs[i], model_beliefs,
+                    all_desc_weights[i], r_model_weights))
+        by_rkl = sorted(
+                range(len(all_desc_strs)),
+                key=lambda i: kl(model_beliefs, all_desc_beliefs[i],
+                    r_model_weights, all_desc_weights[i]))
+
+        tvd_func = tvd_global if config.translator.normalization == "global" else tvd_local
+        by_tvd = sorted(
+                range(len(all_desc_strs)),
+                key=lambda i: tvd_func(all_desc_beliefs[i], model_beliefs,
+                    all_desc_weights[i], r_model_weights))
 
         vis_data["codes"].append({
             "value": simple_code, 
-            "repr": model_beliefs.tolist(),
-            "fkl": "[" + ", ".join([d["value"] for d in by_forward_kl[:3]]) + "]",
-            "rkl": "[" + ", ".join([d["value"] for d in by_reverse_kl[:3]]) + "]",
-            "tvd": "[" + ", ".join([d["value"] for d in by_tvd[:3]]) + "]"
+            "repr": vis_model_beliefs.tolist(),
+            "fkl": "[" + ", ".join([all_desc_strs[i] for i in by_fkl[:3]]) + "]",
+            "rkl": "[" + ", ".join([all_desc_strs[i] for i in by_rkl[:3]]) + "]",
+            "tvd": "[" + ", ".join([all_desc_strs[i] for i in by_tvd[:3]]) + "]",
         })
 
     with open(config.experiment_dir + "/vis.json", "w") as vis_f:

@@ -6,11 +6,12 @@ import numpy as np
 class AbstractRefTask(RefTask):
     def __init__(self):
         super(AbstractRefTask, self).__init__()
-        scenes, _, _, vocab = corpus.load_abstract()
+        scenes, _, _, vocab, freq = corpus.load_abstract()
         self.scenes = scenes
         self.n_features = scenes[0].features.size * 2
         #self.n_features = 2
         self.vocab = vocab
+        self.freq_vocab = freq
         self.n_vocab = len(vocab)
         self.reverse_vocab = {}
         for k, v in vocab.items():
@@ -35,3 +36,6 @@ class AbstractRefTask(RefTask):
 
         html_template = "<img src='%s'>"
         return (html_template % url1) + "\n" + (html_template % url2)
+
+    def pp(self, indices):
+        return " ".join([self.reverse_vocab[i] for i in indices])
