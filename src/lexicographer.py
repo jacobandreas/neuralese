@@ -8,8 +8,8 @@ import tensorflow as tf
 class Break(Exception):
     pass
 
-def run(task, rollout_ph, replay_ph, reconst_ph, model, translator, session,
-        config):
+def run(task, rollout_ph, replay_ph, reconst_ph, model, desc_model, translator,
+        session, config):
     h0, z0, _ = session.run(model.zero_state(1, tf.float32))
 
     i_rollout = 0
@@ -19,8 +19,8 @@ def run(task, rollout_ph, replay_ph, reconst_ph, model, translator, session,
     while len(codes) < config.trainer.n_batch_episodes:
         replay = []
         print trainer._do_rollout(
-                task, rollout_ph, model, replay, [], session, config, 10000, h0,
-                z0, "val")
+                task, rollout_ph, model, desc_model, replay, [], session,
+                config, 10000, h0, z0, "val")
 
         for episode in replay:
             #for experience in episode:

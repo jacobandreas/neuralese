@@ -10,6 +10,8 @@ class RolloutPlaceholders(object):
         t_h = []
         t_z = []
         t_q = []
+        t_desc = []
+        t_desc_h = []
         for i_agent in range(task.n_agents):
             t_x.append(tf.placeholder(
                     tf.float32, (config.trainer.n_rollout_episodes,
@@ -23,19 +25,36 @@ class RolloutPlaceholders(object):
             t_q.append(tf.zeros(
                     (config.trainer.n_rollout_episodes, task.n_actions[i_agent]),
                     tf.float32))
+            t_desc.append(tf.placeholder(
+                    tf.int32, (config.trainer.n_rollout_episodes,
+                        task.max_desc_len)))
+            t_desc_h.append(tf.placeholder(
+                    tf.float32, (config.trainer.n_rollout_episodes,
+                        config.model.n_hidden)))
         self.t_x = tuple(t_x)
         self.t_h = tuple(t_h)
         self.t_z = tuple(t_z)
         self.t_q = tuple(t_q)
+        self.t_desc = tuple(t_desc)
+        self.t_desc_h = tuple(t_desc_h)
 
-    def feed(self, hs, zs, worlds, config):
+    def feed(self, hs, zs, desc_hs, worlds, task, config):
         out = {}
         obs = [w.obs() for w in worlds]
+        desc = np.zeros((config.trainer.n_rollout_episodes, task.max_desc_len))
+        for i, w in enumerate(worlds):
+            desc[i, :len(w.desc)] = w.desc
         for i_t, t in enumerate(self.t_x):
             out[t] = [
                     obs[i][i_t] for i in range(config.trainer.n_rollout_episodes)]
+        for i_t, t in enumerate(self.t_desc):
+            # TODO
+            # out[t] = [
+            #         desc[i][i_t] for i in range(config.trainer.n_rollout_episodes)]
+            out[t] = [desc[i, :] for i in range(config.trainer.n_rollout_episodes)]
         out[self.t_h] = hs
         out[self.t_z] = zs
+        out[self.t_desc_h] = desc_hs
         return out
 
 class ReconstructionPlaceholders(object):
@@ -60,7 +79,7 @@ class ReconstructionPlaceholders(object):
         xb = np.zeros((config.trainer.n_batch_episodes, task.n_features))
         z = np.zeros((config.trainer.n_batch_episodes, config.channel.n_msg))
         desc = np.zeros(
-                (config.trainer.n_batch_episodes, task.max_desc_len), 
+                (config.trainer.n_batch_episodes, task.max_desc_len),
                 dtype=np.int32)
         xa_true = np.zeros((config.trainer.n_batch_episodes, task.n_features))
         xa_noise = np.zeros(
@@ -92,15 +111,15 @@ class ReplayPlaceholders(object):
     def __init__(self, task, config):
         self.t_reward = tf.placeholder(
                 tf.float32,
-                (config.trainer.n_batch_episodes, 
+                (config.trainer.n_batch_episodes,
                     config.trainer.n_batch_history))
         self.t_terminal = tf.placeholder(
                 tf.float32,
-                (config.trainer.n_batch_episodes, 
+                (config.trainer.n_batch_episodes,
                     config.trainer.n_batch_history))
         self.t_mask = tf.placeholder(
                 tf.float32,
-                (config.trainer.n_batch_episodes, 
+                (config.trainer.n_batch_episodes,
                     config.trainer.n_batch_history))
 
         t_x = []
@@ -111,6 +130,10 @@ class ReplayPlaceholders(object):
         t_h_next = []
         t_q = []
         t_q_next = []
+        t_dh = []
+        t_dh_next = []
+        t_desc = []
+        t_desc_next = []
         t_action = []
         for i_agent in range(task.n_agents):
             t_x.append(tf.placeholder(
@@ -124,6 +147,17 @@ class ReplayPlaceholders(object):
                         config.trainer.n_batch_history,
                         task.n_features)))
 
+            t_desc.append(tf.placeholder(
+                    tf.int32,
+                    (config.trainer.n_batch_episodes,
+                        config.trainer.n_batch_history,
+                        task.max_desc_len)))
+            t_desc_next.append(tf.placeholder(
+                    tf.int32,
+                    (config.trainer.n_batch_episodes,
+                        config.trainer.n_batch_history,
+                        task.max_desc_len)))
+
             t_z.append(tf.placeholder(
                     tf.float32,
                     (config.trainer.n_batch_episodes, config.channel.n_msg)))
@@ -135,6 +169,13 @@ class ReplayPlaceholders(object):
                     tf.float32,
                     (config.trainer.n_batch_episodes, config.model.n_hidden)))
             t_h_next.append(tf.placeholder(
+                    tf.float32,
+                    (config.trainer.n_batch_episodes, config.model.n_hidden)))
+
+            t_dh.append(tf.placeholder(
+                    tf.float32,
+                    (config.trainer.n_batch_episodes, config.model.n_hidden)))
+            t_dh_next.append(tf.placeholder(
                     tf.float32,
                     (config.trainer.n_batch_episodes, config.model.n_hidden)))
 
@@ -158,6 +199,10 @@ class ReplayPlaceholders(object):
         self.t_h_next = tuple(t_h_next)
         self.t_q = tuple(t_q)
         self.t_q_next = tuple(t_q_next)
+        self.t_dh = tuple(t_dh)
+        self.t_dh_next = tuple(t_dh_next)
+        self.t_desc = tuple(t_desc)
+        self.t_desc_next = tuple(t_desc_next)
         self.t_action = tuple(t_action)
 
     def feed(self, episodes, task, config):
@@ -174,7 +219,11 @@ class ReplayPlaceholders(object):
         h_next = []
         z = []
         z_next = []
+        dh = []
+        dh_next = []
         action = []
+        desc = []
+        desc_next = []
         for i_agent in range(task.n_agents):
             x.append(np.zeros((n_batch, n_history, task.n_features)))
             x_next.append(np.zeros((n_batch, n_history, task.n_features)))
@@ -182,16 +231,22 @@ class ReplayPlaceholders(object):
             h_next.append(np.zeros((n_batch, config.model.n_hidden)))
             z.append(np.zeros((n_batch, config.channel.n_msg)))
             z_next.append(np.zeros((n_batch, config.channel.n_msg)))
+            dh.append(np.zeros((n_batch, config.model.n_hidden)))
+            dh_next.append(np.zeros((n_batch, config.model.n_hidden)))
             action.append(
                     np.zeros((n_batch, n_history, task.n_actions[i_agent])))
+            desc.append(np.zeros((n_batch, n_history, task.max_desc_len)))
+            desc_next.append(np.zeros((n_batch, n_history, task.max_desc_len)))
 
         for i in range(n_batch):
             ep = episodes[i]
             for i_agent in range(task.n_agents):
-                h[i_agent][i] = ep[0].m1[0][i_agent]
-                z[i_agent][i] = ep[0].m1[1][i_agent]
+                h[i_agent][i, :] = ep[0].m1[0][i_agent]
+                z[i_agent][i, :] = ep[0].m1[1][i_agent]
+                dh[i_agent][i, :] = ep[0].m1[2][i_agent]
                 h_next[i_agent][i, :] = ep[0].m2[0][i_agent]
                 z_next[i_agent][i, :] = ep[0].m2[1][i_agent]
+                dh_next[i_agent][i, :] = ep[0].m2[2][i_agent]
             for j in range(len(ep)):
                 reward[i, j] = ep[j].r
                 terminal[i, j] = ep[j].t
@@ -200,6 +255,10 @@ class ReplayPlaceholders(object):
                     x[i_agent][i, j, :] = ep[j].s1.obs()[i_agent]
                     x_next[i_agent][i, j, :] = ep[j].s2.obs()[i_agent]
                     action[i_agent][i, j, ep[j].a[i_agent]] = 1
+                    d1 = ep[j].s1.desc
+                    d2 = ep[j].s2.desc
+                    desc[i_agent][i, j, :len(d1)] = d1
+                    desc_next[i_agent][i, j, :len(d2)] = d2
 
         return {
             self.t_reward: reward,
@@ -211,5 +270,9 @@ class ReplayPlaceholders(object):
             self.t_h_next: h_next,
             self.t_z: z,
             self.t_z_next: z_next,
-            self.t_action: action
+            self.t_dh: dh,
+            self.t_dh_next: dh_next,
+            self.t_action: action,
+            self.t_desc: desc,
+            self.t_desc_next: desc_next
         }

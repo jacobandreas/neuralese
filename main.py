@@ -5,11 +5,13 @@ from util import Struct
 
 import tasks
 import models
+import models.desc_q
 import channels
 import translators
 
 import trainer
 import lexicographer
+import evaluator
 
 import logging
 import numpy as np
@@ -25,6 +27,7 @@ def main():
     task = tasks.load(config)
     channel = channels.load(config)
     model = models.load(config)
+    desc_model = models.desc_q.DescriptionQModel()
     translator = translators.load(config)
 
     rollout_ph = experience.RolloutPlaceholders(task, config)
@@ -32,19 +35,25 @@ def main():
     reconst_ph = experience.ReconstructionPlaceholders(task, config)
     channel.build(config)
     model.build(task, rollout_ph, replay_ph, channel, config)
+    desc_model.build(task, rollout_ph, replay_ph, channel, config)
     translator.build(task, reconst_ph, channel, model, config)
 
     if config.task.train:
         trainer.run(
-                task, rollout_ph, replay_ph, reconst_ph, model, translator,
-                session, config)
+                task, rollout_ph, replay_ph, reconst_ph, model, desc_model,
+                translator, session, config)
     else:
         trainer.load(session, config)
 
     if config.task.lexicon:
         lexicographer.run(
-                task, rollout_ph, replay_ph, reconst_ph, model, translator,
-                session, config)
+                task, rollout_ph, replay_ph, reconst_ph, model, desc_model,
+                translator, session, config)
+
+    if config.task.evaluate:
+        evaluator.run(
+                task, rollout_ph, replay_ph, reconst_ph, model, desc_model,
+                translator, session, config)
 
 def configure():
     tf.set_random_seed(0)

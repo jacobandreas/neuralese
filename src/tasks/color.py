@@ -5,7 +5,8 @@ import numpy as np
 
 class ColorRefTask(RefTask):
     def __init__(self):
-        super(ColorRefTask, self).__init__()
+        n_features = 3
+        super(ColorRefTask, self).__init__(n_features)
 
         corpus = munroecorpus.get_training_handles()
         self.vocab = {"_": 0}
@@ -37,10 +38,9 @@ class ColorRefTask(RefTask):
         self.colors[:, 1:] /= 100
 
         self.n_examples = len(self.colors)
-        self.n_features = 6
         self.n_vocab = len(self.vocab)
 
-    def get_pair(self):
+    def get_pair(self, fold):
         i1, i2 = self.random.randint(self.n_examples, size=2)
         return self.colors[i1, :], self.colors[i2, :], self.sentences[i1], None, None
 

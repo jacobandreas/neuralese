@@ -5,17 +5,10 @@ import tensorflow as tf
 class GenBeliefTranslator(object):
     def build(self, task, reconst_ph, channel, model, config):
         with tf.variable_scope("belief_translator") as scope:
-            #t_xb_rs = tf.reshape(
-            #        reconst_ph.t_xb,
-            #        (config.trainer.n_batch_episodes, 1, task.n_features))
             t_xa_true_rs = tf.reshape(
                     reconst_ph.t_xa_true,
                     (config.trainer.n_batch_episodes, 1, task.n_features))
-            #t_xb_tile = tf.tile(
-            #        t_xb_rs, (1, config.trainer.n_distractors + 1, 1))
             t_xa = tf.concat(1, (t_xa_true_rs, reconst_ph.t_xa_noise))
-            #t_xa_drop = tf.nn.dropout(t_xa, 0.5)
-            #t_xa_true_drop = tf.nn.dropout(reconst_ph.t_xa_true, 0.5)
             t_xa_drop = t_xa
             t_xa_true_drop = reconst_ph.t_xa_true
 

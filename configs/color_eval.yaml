@@ -1,39 +1,45 @@
-name: drive_train
+name: color_eval
 
 task: 
-  name: DriveTask
-  train: true
+  name: ColorRefTask
+  train: false
   lexicon: false
+  evaluate: true
 
 channel:
   name: GaussianChannel
-  n_msg: 32
   normalize: true
+  n_msg: 64
   std: 0.5
 
 model: 
   name: RecurrentQModel
   n_hidden: 256
+  n_embed: 64
   communicate: true
   discount: 0.9
   step_size: 0.003
-  message_cost: 0
-  load: drive_train
+  message_cost: 0.0
+  load: color_train
 
 translator:
   name: GenBeliefTranslator
   n_hidden: 128
-  step_size: 0.003
-  normalization: global
+  step_size: 0.0003
+  normalization: local
 
 trainer:
   n_replay_episodes: 500
   n_batch_episodes: 256
   n_rollout_episodes: 1
-  n_batch_history: 10
-  n_timeout: 100
+  n_batch_history: 2
+  n_timeout: 2
   good_fraction: 0.2
-  n_iters: 40000
+  n_iters: 20000
   n_update_iters: 100
   n_distractors: 1
   resume: false
+
+evaluator:
+  code_agent: 0
+  desc_agent: 1

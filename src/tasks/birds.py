@@ -9,7 +9,7 @@ N_FEATURES = 256
 
 class BirdsRefTask(RefTask):
     def __init__(self):
-        super(BirdsRefTask, self).__init__()
+        super(BirdsRefTask, self).__init__(N_FEATURES)
         with open("data/birds/CUB_feature_dict.p") as feature_f:
             features = pickle.load(feature_f)
         self.random = np.random.RandomState(0)
@@ -76,7 +76,7 @@ class BirdsRefTask(RefTask):
         ### self.n_vocab = 3
 
         self.n_examples = len(self.keys)
-        self.n_features = 2 * N_FEATURES
+        #self.n_features = 2 * N_FEATURES
 
     def get_pair(self, fold):
         fold_keys = self.folds[fold]
