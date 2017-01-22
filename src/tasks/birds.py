@@ -16,8 +16,19 @@ class BirdsRefTask(RefTask):
         n_raw_features, = features.values()[0].shape
         projector = self.random.randn(N_FEATURES, n_raw_features)
         proj_features = {}
+        m1 = np.zeros(N_FEATURES)
+        m2 = np.zeros(N_FEATURES)
         for k, v in features.items():
-            proj_features[k] = np.dot(projector, v)
+            proj = np.dot(projector, v)
+            m1 += proj
+            m2 += proj ** 2
+            proj_features[k] = proj
+        m1 /= len(features)
+        m2 /= len(features)
+        std = np.sqrt(m2 - m1 ** 2)
+        for v in proj_features.values():
+            v -= m1
+            v /= std
         self.features = proj_features
         self.keys = sorted(self.features.keys())
         
@@ -43,8 +54,8 @@ class BirdsRefTask(RefTask):
             for word in desc:
                 counts[word] += 1
         freq_words = sorted(counts.items(), key=lambda p: -p[1])
-        self.vocab = {"UNK": 0}
-        self.reverse_vocab = {0: "UNK"}
+        self.vocab = {"_": 0, "UNK": 1}
+        self.reverse_vocab = {0: "_", 1: "UNK"}
         for word, count in freq_words[:100]:
             i = len(self.vocab)
             self.vocab[word] = i
@@ -58,7 +69,8 @@ class BirdsRefTask(RefTask):
                 if word in self.vocab:
                     out.append(self.vocab[word])
                 else:
-                    out.append(0)
+                    out.append(self.vocab["UNK"])
+            #out = [np.random.randint(2)+2] * 2
             self.descs[k] = out
             self.max_desc_len = max(self.max_desc_len, len(out))
 
@@ -76,7 +88,6 @@ class BirdsRefTask(RefTask):
         ### self.n_vocab = 3
 
         self.n_examples = len(self.keys)
-        #self.n_features = 2 * N_FEATURES
 
     def get_pair(self, fold):
         fold_keys = self.folds[fold]
@@ -84,13 +95,19 @@ class BirdsRefTask(RefTask):
         k1, k2 = fold_keys[i1], fold_keys[i2]
         f1, f2 = self.features[k1], self.features[k2]
         desc = self.descs[k1]
-        if len(desc) - 1 == 0:
-            i_bigram = 0
-        else:
-            i_bigram = self.random.randint(len(desc)-1)
-        bigram = desc[i_bigram:i_bigram+2]
+
+        #f1 = np.zeros(f1.shape)
+        #f2 = np.zeros(f2.shape)
+        #f1[0] = desc[0] - 2
+        #f2[0] = 1 - (desc[0] - 2)
+
+        #if len(desc) - 1 == 0:
+        #    i_bigram = 0
+        #else:
+        #    i_bigram = self.random.randint(len(desc)-1)
+        #bigram = desc[i_bigram:i_bigram+2]
         ### bigram = self.descs[k1]
-        return (f1, f2, bigram, k1, k2)
+        return (f1, f2, desc, k1, k2)
 
     def visualize(self, state, agent):
         url_template = "http://tomato.banatao.berkeley.edu/jda/codes/birds/CUB_200_2011/images/%s"

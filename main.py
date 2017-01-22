@@ -5,7 +5,7 @@ from util import Struct
 
 import tasks
 import models
-import models.desc_q
+import models.desc_im
 import channels
 import translators
 
@@ -27,7 +27,7 @@ def main():
     task = tasks.load(config)
     channel = channels.load(config)
     model = models.load(config)
-    desc_model = models.desc_q.DescriptionQModel()
+    desc_model = models.desc_im.DescriptionImitationModel()
     translator = translators.load(config)
 
     rollout_ph = experience.RolloutPlaceholders(task, config)

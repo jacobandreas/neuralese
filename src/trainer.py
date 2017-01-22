@@ -13,6 +13,7 @@ def run(task, rollout_ph, replay_ph, reconst_ph, model, desc_model, translator,
     saver = tf.train.Saver()
     replay = []
     good_replay = []
+    demonstrations = []
 
     if config.trainer.resume:
         load(session, config)
@@ -27,13 +28,14 @@ def run(task, rollout_ph, replay_ph, reconst_ph, model, desc_model, translator,
         score = _do_rollout(
                 task, rollout_ph, model, desc_model, replay, good_replay,
                 session, config, i_iter, h0, z0)
+        demonstrations.append(task.get_demonstration("train"))
         loss = _do_step(
                 task, replay_ph, reconst_ph, model, desc_model, translator,
-                replay, good_replay, session, config)
+                replay, good_replay, demonstrations, session, config)
         total_score += np.asarray(score)
         total_loss += np.asarray(loss)
 
-        if (i_iter + 1) % config.trainer.n_update_iters == 0:
+        if (i_iter + 1) % (config.trainer.n_update_iters) == 0:
             total_score /= config.trainer.n_update_iters
             total_loss /= config.trainer.n_update_iters
             logging.info("[iter] " + "\t%d", i_iter)
@@ -43,7 +45,7 @@ def run(task, rollout_ph, replay_ph, reconst_ph, model, desc_model, translator,
             total_score = 0.
             total_loss = 0.
             session.run(model.oo_update_target)
-            session.run(desc_model.oo_update_target)
+            #session.run(desc_model.oo_update_target)
             saver.save(session, config.experiment_dir + "/model")
 
 def load(session, config):
@@ -70,16 +72,8 @@ def _do_rollout(
         for i in range(config.trainer.n_rollout_episodes):
             if done[i]:
                 continue
-            #print worlds[i].obs()[0]
-            #print worlds[i].obs()[1]
-            #print dqs
-            #exit()
             actions = []
-            if random.randint(2) == 0:
-                used_qs = qs
-            else:
-                used_qs = dqs
-            #used_qs = dqs
+            used_qs = qs
             for q in used_qs:
                 q = q[i, :]
                 # TODO configurable
@@ -89,13 +83,11 @@ def _do_rollout(
                     a = np.argmax(q)
                 actions.append(a)
 
-            #print actions
-
             h = [oh[i] for oh in hs]
             z = [oz[i] for oz in zs]
-            dh = [odh[i] for odh in dhs]
             h_ = [oh_[i] for oh_ in hs_]
             z_ = [oz_[i] for oz_ in zs_]
+            dh = [odh[i] for odh in dhs]
             dh_ = [odh_[i] for odh_ in dhs_]
             world_, reward, done_ = worlds[i].step(actions)
             done_ = done_ or t == config.trainer.n_timeout - 1
@@ -127,16 +119,20 @@ def _do_rollout(
 #@profile
 def _do_step(
         task, replay_ph, reconst_ph, model, desc_model, translator, replay,
-        good_replay, session, config):
+        good_replay, demonstrations, session, config):
     n_good = int(config.trainer.n_batch_episodes * config.trainer.good_fraction)
     n_any = config.trainer.n_batch_episodes - n_good
-    if len(replay) < n_any or len(good_replay) < n_good:
+    if (len(replay) < n_any or len(good_replay) < n_good
+            or len(demonstrations) < config.trainer.n_batch_episodes):
         return [0, 0, 0]
     episodes = []
+    desc_episodes = []
     for _ in range(n_good):
         episodes.append(good_replay[random.randint(len(good_replay))])
     for _ in range(n_any):
         episodes.append(replay[random.randint(len(replay))])
+    for _ in range(config.trainer.n_batch_episodes):
+        desc_episodes.append(demonstrations[random.randint(len(demonstrations))])
 
     slices = []
     for ep in episodes:
@@ -147,28 +143,32 @@ def _do_step(
 
     feed = replay_ph.feed(slices, task, config)
     model_loss, _ = session.run([model.t_loss, model.t_train_op], feed)
-    desc_loss, _ = session.run([desc_model.t_loss, desc_model.t_train_op], feed)
 
-    ### #if np.random.randint(20) == 0:
-    ### if False:
-    ###     #print slices[0][0].s1.desc
-    ###     #print slices[0][0].s2.desc
-    ###     #print feed[replay_ph.t_z][0][0, :]
-    ###     #print feed[replay_ph.t_z_next][0][0, :]
-    ###     print
-    ###     #print feed[replay_ph.t_desc][1][0, 0, :]
-    ###     #print feed[replay_ph.t_desc_next][1][0, 0, :]
-    ###     desc_q, desc_q_next, desc_td = session.run([desc_model.t_q[1], 
-    ###         desc_model.t_q_next[1], desc_model.t_td[1]], feed)
-    ###     print desc_q[0, ...] * feed[replay_ph.t_mask][0, :, np.newaxis]
-    ###     print desc_q_next[0, ...] * feed[replay_ph.t_mask][0, :, np.newaxis]
-    ###     #print desc_td[0, ...] * feed[replay_ph.t_mask][0, :]
-    ###     #db1, db2, db3 = session.run([desc_model.t_debug_1, desc_model.t_debug_2,
-    ###     #    desc_model.t_debug_3], feed)
-    ###     #print db1[0, 0]
-    ###     #print db2[0, 0]
-    ###     #print db3[0, 0]
-    ###     #print np.mean(feed[replay_ph.t_mask], axis=0)
+    desc_feed = replay_ph.feed(desc_episodes, task, config)
+    desc_loss, _ = session.run(
+            [desc_model.t_loss, desc_model.t_train_op], desc_feed)
+
+    #if np.random.randint(20) == 0:
+    #    print
+    #    #print slices[0][0].s1.desc[1]
+    #    #print slices[0][0].s2.desc[1]
+    #    #print feed[replay_ph.t_z][0][0, :]
+    #    #print feed[replay_ph.t_z_next][0][0, :]
+    #    print "desc", feed[replay_ph.t_desc][1][0, 0, :]
+    #    print "desc n", feed[replay_ph.t_desc_next][1][0, 0, :]
+    #    desc_q, desc_q_next, desc_td = session.run([desc_model.t_q[1], 
+    #        desc_model.t_q_next[1], desc_model.t_td[1]], feed)
+    #    print "q", desc_q[0, ...] * feed[replay_ph.t_mask][0, :, np.newaxis]
+    #    print "q n", desc_q_next[0, ...] * feed[replay_ph.t_mask][0, :, np.newaxis]
+    #    print "td", desc_td[0, ...] * feed[replay_ph.t_mask][0, :]
+    #    print "answer", slices[0][0].s1.target, slices[0][0].s2.target
+    #    #print desc_td[0, ...] * feed[replay_ph.t_mask][0, :]
+    #    db1, db2, db3 = session.run([desc_model.t_debug_1, desc_model.t_debug_2,
+    #        desc_model.t_debug_3], feed)
+    #    print "fut", db1[0, 0]
+    #    print "rew", db2[0, 0]
+    #    print "chosen", db3[0, 0]
+    #    #print np.mean(feed[replay_ph.t_mask], axis=0)
 
     tr_loss, _ = session.run(
             [translator.t_loss, translator.t_train_op],

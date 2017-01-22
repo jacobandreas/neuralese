@@ -1,3 +1,5 @@
+from experience import Experience
+
 import numpy as np
 
 class RefState(object):
@@ -7,7 +9,7 @@ class RefState(object):
         self.target = target
         self.left_data = left_data
         self.right_data = right_data
-        self.desc = [] if first else desc
+        self.desc = ([], []) if first else ([], desc)
         self.real_desc = desc
         self.first = first
         assert target in (0, 1), "invalid target ID"
@@ -24,6 +26,10 @@ class RefState(object):
 
     # listener observation
     def obs_b(self):
+        if self.first:
+            return np.concatenate(
+                    (np.zeros(self.left.shape), np.zeros(self.right.shape),
+                        [self.first]))
         return np.concatenate((self.left, self.right, [self.first]))
 
     def step(self, actions):
@@ -33,6 +39,8 @@ class RefState(object):
         succ = RefState(
                 self.left, self.right, self.target, self.real_desc,
                 self.left_data, self.right_data, first=False)
+        #if self.first and action_b < 2:
+        #    return succ, 0, True
         if action_b < 2:
             reward = 1 if action_b == self.target else 0
             return succ, reward, True
@@ -57,12 +65,29 @@ class RefTask(object):
                     distractor, target, 1, desc, left_data, right_data,
                     first=True)
 
-    def distractors_for(self, state, n_samples):
+    def get_demonstration(self, fold):
+        state1 = self.get_instance(fold)
+        action1 = (0, 2)
+        state2, r1, _ = state1.step(action1)
+        action2 = (0, state1.target)
+        state3, r2, _ = state2.step(action2)
+        assert r2 == 1
+        ep = []
+        ep.append(Experience(
+            state1, None, action1, state2, None, r1, False))
+        ep.append(Experience(
+            state2, None, action2, state3, None, r2, True))
+        return ep
+
+    def distractors_for(self, state, obs_agent, n_samples):
         out = []
         for i in range(n_samples):
+            tgt = state.target
+            if obs_agent == 1:
+                tgt = (i + 1 - state.target) % 2
             out.append((
                 RefState(
-                    state.left, state.right, (i + 1 - state.target) % 2, None,
-                    state.left_data, state.right_data, state.first),
+                    state.left, state.right, tgt, None, state.left_data,
+                    state.right_data, state.first),
                 0.5))
         return out

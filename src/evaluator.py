@@ -39,21 +39,14 @@ def _do_tr_rollout(
             if done[i]:
                 continue
 
-            #print worlds[i].obs()[0]
-            #print worlds[i].obs()[1]
-            #exit()
             actions = [None, None]
             actions[code_agent] = np.argmax(qs[code_agent][i, :])
             actions[desc_agent] = np.argmax(dqs[desc_agent][i, :])
-            #print actions
-            #if t == 0:
-            #    actions[desc_agent] = 2
-            #print dqs[desc_agent][i, :]
 
             world_, reward, done_ = worlds[i].step(actions)
-            code = desc_to_code(world_.desc)
+            code = desc_to_code(world_.desc[desc_agent])
             desc = code_to_desc(zs_[code_agent][i, :])
-            world_.desc = desc
+            #world_.desc = desc
             zs_[desc_agent][i, :] = code
 
             episodes[i].append(Experience(
@@ -61,8 +54,8 @@ def _do_tr_rollout(
             worlds[i] = world_
             done[i] = done_
 
-            #if not done_:
-            #    print task.pp(desc), task.pp(world_.real_desc)
+            if not done_:
+                print task.pp(desc), task.pp(world_.real_desc)
 
         hs = hs_
         zs = zs_
@@ -94,7 +87,7 @@ def run(task, rollout_ph, replay_ph, reconst_ph, model, desc_model, translator,
                 for experience in episode[1:]:
                     codes.append(experience.m1[1][config.evaluator.code_agent])
                     states.append(experience.s1)
-                    descs.append(tuple(experience.s1.desc))
+                    descs.append(tuple(experience.s1.desc[config.evaluator.desc_agent]))
                     if len(states) >= config.trainer.n_batch_episodes:
                         raise Break()
     except Break:
