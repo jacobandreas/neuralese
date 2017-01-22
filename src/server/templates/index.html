@@ -9,7 +9,7 @@
 }
 
 #status {
-  padding: 1em;
+  padding: 0.5em;
   text-align: center;
 }
 
@@ -29,18 +29,22 @@
   background: #fca;
 }
 
+body {
+  margin-bottom: 2em;
+}
+
 
 /*----------------------------------------------------------------------------*/
 
 #map {
   margin: 2em auto;
-  width: 600px;
-  height: 600px;
+  width: 400px;
+  height: 400px;
 }
 
 .cell {
-  width: 75px;
-  height: 75px;
+  width: 50px;
+  height: 50px;
   display: inline-block;
 }
 
@@ -59,8 +63,8 @@
 }
 
 .car {
-  width 150px;
-  height: 75px;
+  width 100px;
+  height: 50px;
   position: relative;
 }
 
@@ -112,7 +116,7 @@
   font-size: 1.5em;
 }
 
-.button:visited {
+.button:visited, .button:link {
   color: #000;
 }
 
@@ -152,23 +156,32 @@ td {
 
 #content {
   width: 50%;
-  min-width: 600px;
+  min-width: 500px;
   float: left;
 }
 
 #controls {
   width: 50%;
-  min-width: 600px;
+  min-width: 500px;
   float: left;
   clear: left;
   text-align: center;
 }
 
-#chat {
-  margin: 2em auto;
+#chatWrapper {
   width: 50%;
-  min-width: 600px;
+  min-width: 500px;
   float: left;
+}
+
+#chat {
+  padding: .5em;
+  margin: 2em;
+  outline: .25em solid #ddd;
+}
+
+#chat hr {
+  border: .1em solid #ddd;
 }
 
 #footer {
@@ -184,6 +197,16 @@ td {
   display: none;
 }
 
+p.token {
+  margin: 6px;
+}
+
+span.token {
+  padding: 3px;
+  border: 1px solid #a00;
+  color: #a00;
+}
+
 
 /*----------------------------------------------------------------------------*/
 
@@ -192,7 +215,7 @@ td {
     <script type="text/javascript" src="https://code.jquery.com/jquery-3.1.1.min.js"></script>
     <script type="text/javascript">
 
-var socket = io("http://localhost:5000");
+var socket = io("http://fromage.banatao.berkeley.edu:5000");
 
 function app_reset() {
   $("#status")
@@ -238,7 +261,7 @@ socket.on("step", function(msg) {
 
 socket.on("end", function(msg) {
   if (msg.reason == "game") {
-    end(msg.score);
+    end(msg.score, msg.token);
   }
   app_disconnect();
 });
@@ -253,6 +276,7 @@ var nextAction = null;
 var road = null;
 
 function begin(data) {
+  $("#controls").removeClass("hidden");
   cells = {}
   road = data.road;
   var map = $("#map");
@@ -288,10 +312,11 @@ function step(data) {
   }
 }
 
-function end(score) {
+function end(score, token) {
   $("#actualControls").addClass("hidden");
   $("#waitingMsg").removeClass("hidden");
-  $("#waitingMsg").text("Game over! Score: " + score);
+  $("#waitingMsg").append("<p>Game over! Score: " + score + "</p>");
+  $("#waitingMsg").append("<p class='token'>Your token is <span class='token'>" + token + "</token></p>");
 }
 
 function placeCar(data) {
@@ -359,8 +384,8 @@ function sendAction() {
     <div id="content">
       <div id="map"></div>
     </div>
-    <div id="chat"></div>
-    <div id="controls">
+    <div id="chatWrapper"><div id="chat"><h3>Messages</h3></div></div>
+    <div id="controls" class="hidden">
       <div id="waitingMsg" class="hidden">Waiting for your partner to move...</div>
       <div id="actualControls">
         <table id="dpad">

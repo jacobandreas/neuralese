@@ -24,6 +24,7 @@ class State:
         self.pending_actions = {}
         self.scores = {}
         self.traces = {}
+        self.done = {}
 
     def join(self, client_id):
         with self.lock:
@@ -47,15 +48,16 @@ class State:
             self.pending_actions[room] = [None] * self.n_players
             self.scores[room] = 0
             self.traces[room] = []
+            self.done[room] = False
 
     def log(self, room, trace_repr):
         with self.lock:
             self.traces[room].append(trace_repr)
 
-    def save_log(self, room):
+    def save_log(self, room, token):
         try:
             timestamp = strftime("%Y-%m-%d_%H-%M-%S", gmtime())
-            path = "server_logs/" + timestamp + "_" + str(np.random.randint(10000)) + ".json"
+            path = "server_logs/" + timestamp + "_" + token + ".json"
             with open(path, "w") as log_f:
                 json.dump(self.traces[room], log_f)
         except Exception as e:
@@ -103,6 +105,8 @@ def disconnect():
 def action(data):
     with state.lock:
         room = state.room_assignments[request.sid]
+        if state.done[room]:
+            return
         i_player = state.rooms[room].index(request.sid)
         pending_actions = state.pending_actions[room]
         pending_actions[i_player] = data
@@ -115,8 +119,13 @@ def action(data):
             for i_client, client in enumerate(state.rooms[room]):
                 io.emit("step", state_repr(state.games[room], i_client), room=client)
             if stop:
-                state.save_log(room)
-                io.emit("end", {"reason": "game", "score": state.scores[room]},
+                state.done[room] = True
+                token = "".join([chr(ord("a") + np.random.randint(16)) for _ in range(8)])
+                state.save_log(room, token)
+                io.emit("end", 
+                        {"reason": "game", 
+                            "score": "%0.1f" % state.scores[room],
+                            "token": token},
                         room=room)
             state.pending_actions[room] = [None] * state.n_players
 
@@ -179,10 +188,12 @@ def step(game, actions):
             omsg = actions[oplayer]["message"]
             if omsg != "":
                 newchats[player].append("Partner said: " + omsg)
+    for c in newchats:
+        c.append("<br><hr>")
     ngame_state, reward, stop = game_state.step(game_actions)
     return (ngame_state, newchats), reward, stop
 
 #-------------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    socketio.run(app, debug=True)
+    socketio.run(app, debug=True, host="fromage.banatao.berkeley.edu", port=5000)
