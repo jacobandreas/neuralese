@@ -39,8 +39,8 @@ class RefState(object):
         succ = RefState(
                 self.left, self.right, self.target, self.real_desc,
                 self.left_data, self.right_data, first=False)
-        #if self.first and action_b < 2:
-        #    return succ, 0, True
+        if self.first and action_b < 2:
+            return succ, 0, True
         if action_b < 2:
             reward = 1 if action_b == self.target else 0
             return succ, reward, True

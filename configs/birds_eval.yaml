@@ -9,8 +9,8 @@ task:
 channel:
   name: GaussianChannel
   normalize: true
-  n_msg: 128
-  std: 0.0
+  n_msg: 64
+  std: 0.5
 
 model: 
   name: RecurrentQModel

@@ -74,6 +74,7 @@ def _do_rollout(
                 continue
             actions = []
             used_qs = qs
+            #used_qs = dqs
             for q in used_qs:
                 q = q[i, :]
                 # TODO configurable

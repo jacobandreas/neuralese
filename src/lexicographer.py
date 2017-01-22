@@ -28,7 +28,12 @@ def run(task, rollout_ph, replay_ph, reconst_ph, model, desc_model, translator,
             #for experience in episode[1:]:
                 codes.append(experience.m1[1][0])
                 states.append(experience.s1)
-                descs.append(tuple(experience.s1.desc))
+                desc = experience.s1.desc[1]
+                #for i_bigram in range(max(1, len(desc) - 1)):
+                #    descs.append(tuple(desc[i_bigram:i_bigram+2]))
+                #i_bigram = np.random.randint(max(1, len(desc) - 1))
+                #descs.append(tuple(desc[i_bigram:i_bigram+2]))
+                descs.append(tuple(desc))
         i_rollout += 1
 
     print len(codes), len(states), len(descs)
@@ -50,7 +55,7 @@ def run(task, rollout_ph, replay_ph, reconst_ph, model, desc_model, translator,
     for i, state in enumerate(states):
         xb[i, :] = state.obs()[1]
         xa_true[i, :] = state.obs()[0]
-        distractors = task.distractors_for(state, config.trainer.n_distractors)
+        distractors = task.distractors_for(state, 1, config.trainer.n_distractors)
         vis_data["states"].append(task.visualize(state, 0))
         distractor_vis = []
         for i_dis in range(len(distractors)):

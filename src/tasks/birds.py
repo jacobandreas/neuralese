@@ -70,7 +70,6 @@ class BirdsRefTask(RefTask):
                     out.append(self.vocab[word])
                 else:
                     out.append(self.vocab["UNK"])
-            #out = [np.random.randint(2)+2] * 2
             self.descs[k] = out
             self.max_desc_len = max(self.max_desc_len, len(out))
 
@@ -96,16 +95,11 @@ class BirdsRefTask(RefTask):
         f1, f2 = self.features[k1], self.features[k2]
         desc = self.descs[k1]
 
-        #f1 = np.zeros(f1.shape)
-        #f2 = np.zeros(f2.shape)
-        #f1[0] = desc[0] - 2
-        #f2[0] = 1 - (desc[0] - 2)
-
-        #if len(desc) - 1 == 0:
-        #    i_bigram = 0
-        #else:
-        #    i_bigram = self.random.randint(len(desc)-1)
-        #bigram = desc[i_bigram:i_bigram+2]
+        if len(desc) - 1 == 0:
+            i_bigram = 0
+        else:
+            i_bigram = self.random.randint(len(desc)-1)
+        desc = desc[i_bigram:i_bigram+2]
         ### bigram = self.descs[k1]
         return (f1, f2, desc, k1, k2)
 
