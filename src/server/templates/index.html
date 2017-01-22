@@ -1,0 +1,384 @@
+<html>
+  <head>
+    <link href="https://fonts.googleapis.com/css?family=Roboto+Mono" rel="stylesheet">
+    <style type="text/css">
+* {
+  margin: 0;
+  padding: 0;
+  font-family: "Roboto Mono", monospace;
+}
+
+#status {
+  padding: 1em;
+  text-align: center;
+}
+
+#status.connecting {
+  background: #acf;
+}
+
+#status.waiting {
+  background: #ffa;
+}
+
+#status.playing {
+  background: #cfa;
+}
+
+#status.disconnected {
+  background: #fca;
+}
+
+
+/*----------------------------------------------------------------------------*/
+
+#map {
+  margin: 2em auto;
+  width: 600px;
+  height: 600px;
+}
+
+.cell {
+  width: 75px;
+  height: 75px;
+  display: inline-block;
+}
+
+.road {
+  background: #ccc;
+}
+
+.grass {
+  background: #cfc;
+}
+
+.goal {
+  background: #f88;
+  z-index: 10;
+  position: relative;
+}
+
+.car {
+  width 150px;
+  height: 75px;
+  position: relative;
+}
+
+.car.north {
+  transform: rotate(270deg);
+  left: -50%;
+  top: 50%;
+}
+
+.car.east {
+  transform: rotate(0deg);
+  left: -100%;
+}
+
+.car.south {
+  transform: rotate(90deg);
+  left: -50%;
+  top: -50%;
+}
+
+.car.west {
+  transform: rotate(180deg);
+}
+
+#dpad.north {
+  transform: rotate(0deg);
+}
+
+#dpad.east {
+  transform: rotate(90deg);
+}
+
+#dpad.south {
+  transform: rotate(180deg);
+}
+
+#dpad.west {
+  transform: rotate(270deg);
+}
+
+.button {
+  width: 2em;
+  height: 2em;
+  display: inline-block;
+  background: #eee;
+  border: 2px solid #aaa;
+  text-decoration: none;
+  padding-top: .5em;
+  font-size: 1.5em;
+}
+
+.button:visited {
+  color: #000;
+}
+
+.button:active {
+  border: 2px solid #44c;
+}
+
+.button.selected {
+  border: 2px solid #44c;
+  background: #aae;
+}
+
+#sendButton {
+  height: 2em;
+  width: 6em;
+  display: block;
+  padding: .5em 1em 0 1em;
+  margin: 0 auto;
+  background: #efe;
+  border: 2px solid #aea;
+  text-decoration: none;
+  font-size: 1.5em;
+  margin-top: 1em;
+}
+
+#controls input {
+  font-size: 1.5em;
+  border: none;
+  width: 80%;
+  border-bottom: 2px solid #333;
+  margin-top: 1em;
+}
+
+td {
+  text-align: center;
+}
+
+#content {
+  width: 50%;
+  min-width: 600px;
+  float: left;
+}
+
+#controls {
+  width: 50%;
+  min-width: 600px;
+  float: left;
+  clear: left;
+  text-align: center;
+}
+
+#chat {
+  margin: 2em auto;
+  width: 50%;
+  min-width: 600px;
+  float: left;
+}
+
+#footer {
+  width: 100%;
+  clear: both;
+}
+
+#controls table {
+  display: inline-block;
+}
+
+.hidden, #sendButton.hidden {
+  display: none;
+}
+
+
+/*----------------------------------------------------------------------------*/
+
+    </style>
+		<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/socket.io/1.3.6/socket.io.min.js"></script>
+    <script type="text/javascript" src="https://code.jquery.com/jquery-3.1.1.min.js"></script>
+    <script type="text/javascript">
+
+var socket = io("http://localhost:5000");
+
+function app_reset() {
+  $("#status")
+    .text("Connecting...")
+    .removeClass("waiting playing")
+    .addClass("connecting");
+}
+
+function app_join() {
+  $("#status")
+    .text("Waiting for other players...")
+    .removeClass("connecting")
+    .addClass("waiting");
+}
+
+function app_begin() {
+  $("#status")
+    .text("Playing!")
+    .removeClass("connecting")
+    .addClass("playing");
+}
+
+function app_disconnect() {
+  $("#status")
+    .text("Disconnected.")
+    .removeClass("waiting playing")
+    .addClass("disconnected");
+  socket = null;
+}
+
+socket.on("join", function(msg) {
+  app_join();
+});
+
+socket.on("begin", function(msg) {
+  app_begin();
+  begin(msg);
+});
+
+socket.on("step", function(msg) {
+  step(msg);
+});
+
+socket.on("end", function(msg) {
+  if (msg.reason == "game") {
+    end(msg.score);
+  }
+  app_disconnect();
+});
+
+$(document).ready(app_reset);
+
+//------------------------------------------------------------------------------
+
+var car = $("<img src='static/car.png' class='car'></img>");
+var cells = null;
+var nextAction = null;
+var road = null;
+
+function begin(data) {
+  cells = {}
+  road = data.road;
+  var map = $("#map");
+  for (var r = 0; r < road.length; r++) {
+    for (var c = 0; c < road[r].length; c++) {
+      var cell = $("<div class='cell'></div>");
+      if (road[r][c] == 1) {
+        cell.addClass("road");
+      } else {
+        cell.addClass("grass");
+      }
+      if (r == data.goal[0] && c == data.goal[1]) {
+        cell.addClass("goal");
+      }
+      cells[[r, c]] = cell;
+      map.append(cell);
+    }
+  }
+  placeCar(data);
+}
+
+function step(data) {
+  $("#chat").html(data.chat.join("<br>"));
+  if (data.done) {
+    car.addClass("hidden");
+    nextAction = 0;
+    sendAction();
+  } else {
+    placeCar(data);
+    $("#sendButton").addClass("hidden");
+    $("#actualControls").removeClass("hidden");
+    $("#waitingMsg").addClass("hidden");
+  }
+}
+
+function end(score) {
+  $("#actualControls").addClass("hidden");
+  $("#waitingMsg").removeClass("hidden");
+  $("#waitingMsg").text("Game over! Score: " + score);
+}
+
+function placeCar(data) {
+  for (var r = 0; r < road.length; r++) {
+    for (var c = 0; c < road[r].length; c++) {
+      cell = cells[[r, c]];
+      if (r == data.pos[0] && c == data.pos[1]) {
+        cell.append(car);
+      }
+    }
+  }
+
+  car.removeClass("north east south west");
+  var dir = null;
+  if (data.dir == 0) {
+    dir = "north";
+  } else if (data.dir == 1) {
+    dir = "east";
+  } else if (data.dir == 2) {
+    dir = "south";
+  } else if (data.dir == 3) {
+    dir = "west";
+  }
+  car.addClass(dir);
+  $("#dpad").removeClass("north east south west").addClass(dir);
+}
+
+function setAction(action) {
+  $(".action").removeClass("selected");
+  if (action == "stop") {
+    nextAction = 0;
+    $("#stop").addClass("selected");
+  } else if (action == "forward") {
+    nextAction = 1;
+    $("#forward").addClass("selected");
+  } else if (action == "left") {
+    nextAction = 2;
+    $("#left").addClass("selected");
+  } else if (action == "right") {
+    nextAction = 3;
+    $("#right").addClass("selected");
+  }
+  $("#sendButton").removeClass("hidden");
+}
+
+function sendAction() {
+  if (socket == null || nextAction == null) {
+    return;
+  }
+  $(".action").removeClass("selected");
+  $("#sendButton").addClass("hidden");
+  $("#actualControls").addClass("hidden");
+  $("#waitingMsg").removeClass("hidden");
+  message = $("#nextChat").val();
+  $("#nextChat").val("");
+  socket.emit("action", {"action": nextAction, "message": message});
+  nextAction = null;
+}
+
+//------------------------------------------------------------------------------
+    </script>
+  </head>
+  <body>
+    <div id="status">Connecting...</div>
+    <div id="content">
+      <div id="map"></div>
+    </div>
+    <div id="chat"></div>
+    <div id="controls">
+      <div id="waitingMsg" class="hidden">Waiting for your partner to move...</div>
+      <div id="actualControls">
+        <table id="dpad">
+          <tr>
+            <td><td><a href="#" class="action button" id="forward" onClick="setAction('forward')">&uarr;</a></td>
+          </tr>
+          <tr>
+            <td><a href="#" class="action button" id="left" onClick="setAction('left')">&larr;</a></td>
+            <td><a href="#" class="action button" id="stop" onClick="setAction('stop')">&empty;</a></td>
+            <td><a href="#" class="action button" id="right" onClick="setAction('right')">&rarr;</a></td>
+          </tr>
+        </table>
+        <br>
+        <input type="text" id="nextChat" placeholder="your message"></input>
+        <br>
+        <a href="#" id="sendButton" class="button hidden" onClick="sendAction()">Go!</a>
+      </div>
+    </div>
+    <div id="footer"></div>
+  </body>
+</html>
