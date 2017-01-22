@@ -41,17 +41,18 @@ class RolloutPlaceholders(object):
     def feed(self, hs, zs, desc_hs, worlds, task, config):
         out = {}
         obs = [w.obs() for w in worlds]
-        desc = np.zeros((config.trainer.n_rollout_episodes, task.max_desc_len))
+        desc = [np.zeros((config.trainer.n_rollout_episodes, task.max_desc_len))
+                for _ in range(task.n_agents)]
         for i, w in enumerate(worlds):
-            desc[i, :len(w.desc)] = w.desc
+            for i_agent in range(task.n_agents):
+                desc[i_agent][i, :len(w.desc[i_agent])] = w.desc[i_agent]
         for i_t, t in enumerate(self.t_x):
             out[t] = [
                     obs[i][i_t] for i in range(config.trainer.n_rollout_episodes)]
-        for i_t, t in enumerate(self.t_desc):
-            # TODO
-            # out[t] = [
-            #         desc[i][i_t] for i in range(config.trainer.n_rollout_episodes)]
-            out[t] = [desc[i, :] for i in range(config.trainer.n_rollout_episodes)]
+        for i_agent, t in enumerate(self.t_desc):
+            out[t] = [
+                    desc[i_agent][i, :] 
+                    for i in range(config.trainer.n_rollout_episodes)]
         out[self.t_h] = hs
         out[self.t_z] = zs
         out[self.t_desc_h] = desc_hs
@@ -91,10 +92,10 @@ class ReconstructionPlaceholders(object):
             message = experience.m1[1][hidden_agent]
             xb[i, :] = state.obs()[obs_agent]
             z[i, :] = message
-            desc[i, :len(state.desc)] = state.desc
+            desc[i, :len(state.desc[obs_agent])] = state.desc[obs_agent]
             xa_true[i, :] = state.obs()[hidden_agent]
             distractors = task.distractors_for(
-                    state, config.trainer.n_distractors)
+                    state, obs_agent, config.trainer.n_distractors)
             for i_dis in range(config.trainer.n_distractors):
                 dis, prob = distractors[i_dis]
                 xa_noise[i, i_dis, :] = dis.obs()[hidden_agent]
@@ -135,6 +136,7 @@ class ReplayPlaceholders(object):
         t_desc = []
         t_desc_next = []
         t_action = []
+        t_action_index = []
         for i_agent in range(task.n_agents):
             t_x.append(tf.placeholder(
                     tf.float32,
@@ -191,6 +193,10 @@ class ReplayPlaceholders(object):
                     (config.trainer.n_batch_episodes,
                         config.trainer.n_batch_history,
                         task.n_actions[i_agent])))
+            t_action_index.append(tf.placeholder(
+                    tf.int32,
+                    (config.trainer.n_batch_episodes,
+                        config.trainer.n_batch_history)))
         self.t_x = tuple(t_x)
         self.t_x_next = tuple(t_x_next)
         self.t_z = tuple(t_z)
@@ -204,6 +210,7 @@ class ReplayPlaceholders(object):
         self.t_desc = tuple(t_desc)
         self.t_desc_next = tuple(t_desc_next)
         self.t_action = tuple(t_action)
+        self.t_action_index = tuple(t_action_index)
 
     def feed(self, episodes, task, config):
         n_batch = len(episodes)
@@ -222,6 +229,7 @@ class ReplayPlaceholders(object):
         dh = []
         dh_next = []
         action = []
+        action_index = []
         desc = []
         desc_next = []
         for i_agent in range(task.n_agents):
@@ -235,18 +243,20 @@ class ReplayPlaceholders(object):
             dh_next.append(np.zeros((n_batch, config.model.n_hidden)))
             action.append(
                     np.zeros((n_batch, n_history, task.n_actions[i_agent])))
+            action_index.append(np.zeros((n_batch, n_history)))
             desc.append(np.zeros((n_batch, n_history, task.max_desc_len)))
             desc_next.append(np.zeros((n_batch, n_history, task.max_desc_len)))
 
         for i in range(n_batch):
             ep = episodes[i]
             for i_agent in range(task.n_agents):
-                h[i_agent][i, :] = ep[0].m1[0][i_agent]
-                z[i_agent][i, :] = ep[0].m1[1][i_agent]
-                dh[i_agent][i, :] = ep[0].m1[2][i_agent]
-                h_next[i_agent][i, :] = ep[0].m2[0][i_agent]
-                z_next[i_agent][i, :] = ep[0].m2[1][i_agent]
-                dh_next[i_agent][i, :] = ep[0].m2[2][i_agent]
+                if ep[0].m1 is not None:
+                    h[i_agent][i, :] = ep[0].m1[0][i_agent]
+                    z[i_agent][i, :] = ep[0].m1[1][i_agent]
+                    dh[i_agent][i, :] = ep[0].m1[2][i_agent]
+                    h_next[i_agent][i, :] = ep[0].m2[0][i_agent]
+                    z_next[i_agent][i, :] = ep[0].m2[1][i_agent]
+                    dh_next[i_agent][i, :] = ep[0].m2[2][i_agent]
             for j in range(len(ep)):
                 reward[i, j] = ep[j].r
                 terminal[i, j] = ep[j].t
@@ -255,10 +265,11 @@ class ReplayPlaceholders(object):
                     x[i_agent][i, j, :] = ep[j].s1.obs()[i_agent]
                     x_next[i_agent][i, j, :] = ep[j].s2.obs()[i_agent]
                     action[i_agent][i, j, ep[j].a[i_agent]] = 1
+                    action_index[i_agent][i, j] = ep[j].a[i_agent]
                     d1 = ep[j].s1.desc
                     d2 = ep[j].s2.desc
-                    desc[i_agent][i, j, :len(d1)] = d1
-                    desc_next[i_agent][i, j, :len(d2)] = d2
+                    desc[i_agent][i, j, :len(d1[i_agent])] = d1[i_agent]
+                    desc_next[i_agent][i, j, :len(d2[i_agent])] = d2[i_agent]
 
         return {
             self.t_reward: reward,
@@ -273,6 +284,7 @@ class ReplayPlaceholders(object):
             self.t_dh: dh,
             self.t_dh_next: dh_next,
             self.t_action: action,
+            self.t_action_index: action_index,
             self.t_desc: desc,
             self.t_desc_next: desc_next
         }

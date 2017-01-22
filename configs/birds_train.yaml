@@ -4,13 +4,13 @@ task:
   name: BirdsRefTask
   train: true
   lexicon: false
+  evaluate: false
 
 channel:
   name: GaussianChannel
   normalize: true
-  n_msg: 128
+  n_msg: 64
   std: 0.5
-  #std: 0.0
 
 model: 
   name: RecurrentQModel
@@ -34,8 +34,8 @@ trainer:
   n_rollout_episodes: 1
   n_batch_history: 3
   n_timeout: 3
-  good_fraction: 0.2
-  n_iters: 20000
+  good_fraction: 0.1
+  n_iters: 10000
   n_update_iters: 100
   n_distractors: 1
   resume: false

@@ -1,9 +1,10 @@
-name: birds_lex
+name: birds_eval
 
 task: 
   name: BirdsRefTask
   train: false
-  lexicon: true
+  lexicon: false
+  evaluate: true
 
 channel:
   name: GaussianChannel
@@ -23,8 +24,8 @@ model:
 
 translator:
   name: GenBeliefTranslator
-  n_hidden: 128
-  step_size: 0.0003
+  n_hidden: 256
+  step_size: 0.003
   normalization: local
 
 trainer:
@@ -32,8 +33,13 @@ trainer:
   n_batch_episodes: 256
   n_rollout_episodes: 1
   n_batch_history: 10
-  n_timeout: 100
+  n_timeout: 3
   good_fraction: 0.2
   n_iters: 20000
   n_update_iters: 100
   n_distractors: 1
+  resume: false
+
+evaluator:
+  code_agent: 0
+  desc_agent: 1
