@@ -24,8 +24,8 @@ model:
 
 translator:
   name: GenBeliefTranslator
-  n_hidden: 256
-  step_size: 0.003
+  n_hidden: 128
+  step_size: 0.0003
   normalization: global
 
 trainer:
@@ -35,7 +35,7 @@ trainer:
   n_batch_history: 3
   n_timeout: 3
   good_fraction: 0.1
-  n_iters: 20000
+  n_iters: 10000
   n_update_iters: 100
   n_distractors: 1
   resume: false

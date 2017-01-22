@@ -73,6 +73,8 @@ class BirdsRefTask(RefTask):
             self.descs[k] = out
             self.max_desc_len = max(self.max_desc_len, len(out))
 
+        self.max_desc_len = 2
+
         ### self.vocab = {"UNK": 0, "foo": 1, "baz": 2}
         ### self.reverse_vocab = {0: "UNK", 1: "foo", 2: "baz"}
         ### self.descs = {}

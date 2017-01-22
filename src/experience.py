@@ -92,7 +92,7 @@ class ReconstructionPlaceholders(object):
             message = experience.m1[1][hidden_agent]
             xb[i, :] = state.obs()[obs_agent]
             z[i, :] = message
-            desc[i, :len(state.desc[hidden_agent])] = state.desc[hidden_agent]
+            desc[i, :len(state.desc[obs_agent])] = state.desc[obs_agent]
             xa_true[i, :] = state.obs()[hidden_agent]
             distractors = task.distractors_for(
                     state, obs_agent, config.trainer.n_distractors)
