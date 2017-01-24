@@ -1,5 +1,9 @@
+from experience import Experience
+
 from collections import namedtuple
+import json
 import numpy as np
+import os
 
 MAP_1 = """
 ###.*###
@@ -66,7 +70,7 @@ Car = namedtuple("Car", ["pos", "dir", "goal", "done"])
 
 N_FEATURES = (
     len(MAPS)
-    + MAP_SHAPE[0] * MAP_SHAPE[1] * 2
+    + MAP_SHAPE[0] * MAP_SHAPE[1] * 3
     + len(DIRS))
 
 
@@ -77,22 +81,83 @@ class DriveTask(object):
         self.symmetric = True
         self.n_actions = (4, 4)
         self.n_features = N_FEATURES
-        self.max_desc_len = 1
         self.n_vocab = 1
-        self.vocab = {"UNK": 0}
-        self.reverse_vocab = {0: "UNK"}
+        self.vocab = {"_": 0, "UNK": 1}
+        self.reverse_vocab = {0: "_", 1: "UNK"}
+
+        self.roads = []
+        for map_str in MAPS:
+            template = map_str.split("\n")[1:-1]
+            road = np.zeros(MAP_SHAPE)
+            for r in range(MAP_SHAPE[0]):
+                for c in range(MAP_SHAPE[1]):
+                    road[r, c] = 0 if template[r][c] == "#" else 1
+            self.roads.append(road)
+
+        self.demonstrations = self.load_traces()
+        self.max_desc_len = max(len(d) for dem in self.demonstrations for ex in
+                dem for d in ex.s1.desc)
+
+    def load_traces(self):
+        traces = []
+        for filename in os.listdir("data/drive/server_logs"):
+            if not filename.endswith("json"):
+                continue
+            with open("data/drive/server_logs/" + filename) as trace_f:
+                data = json.load(trace_f)
+
+            init = data[0]
+            inputs = data[1::2]
+
+            road = np.zeros(MAP_SHAPE)
+            for r in range(MAP_SHAPE[0]):
+                for c in range(MAP_SHAPE[1]):
+                    road[r, c] = init["road"][r][c]
+
+            map_id, = [i for i in range(len(MAPS)) if (self.roads[i] == road).all()]
+
+            cars = []
+            for car_data in init["cars"]:
+                cars.append(Car(
+                    tuple(car_data["pos"]), car_data["dir"],
+                    tuple(car_data["goal"]), car_data["done"]))
+
+            state = DriveState(map_id, road, cars)
+            episode = []
+            for inp1, inp2 in inputs:
+                action = (inp1["action"], inp2["action"])
+                def tokenize(d):
+                    d = d.lower().replace(".", "").replace(",", "").split()
+                    out = []
+                    for w in d:
+                        if w not in self.vocab:
+                            self.vocab[w] = len(self.vocab)
+                        out.append(self.vocab[w])
+                    return out
+                d1 = tokenize(inp1["message"])
+                d2 = tokenize(inp2["message"])
+                desc = (d2, d1)
+                state_, reward, done = state.step(action)
+                state_.desc = desc
+                episode.append(Experience(
+                    state, None, action, state_, None, reward, done))
+                state = state_
+
+            traces.append(episode)
+        return traces
+
+    def get_demonstration(self, fold):
+        return self.demonstrations[self.random.randint(len(self.demonstrations))]
 
     def get_instance(self, _):
         map_id = self.random.randint(len(MAPS))
         map_str = MAPS[map_id]
         template = map_str.split("\n")[1:-1]
-        rows = len(template)
-        cols = len(template[0])
         start_indices = [
-                (r, c) for r in range(rows) for c in range(cols)
+                (r, c) for r in range(MAP_SHAPE[0]) for c in range(MAP_SHAPE[1])
                 if template[r][c] in ("n", "e", "s", "w")]
         goal_indices = [
-                (r, c) for r in range(rows) for c in range(cols)
+                (r, c) for r in range(MAP_SHAPE[0]) for c in range(MAP_SHAPE[1])
                 if template[r][c] == "*"]
 
         agent1_start = start_indices[self.random.randint(len(start_indices))]
@@ -103,17 +168,12 @@ class DriveTask(object):
         agent1_goal = goal_indices[self.random.randint(len(goal_indices))]
         agent2_goal = goal_indices[self.random.randint(len(goal_indices))]
 
-        road = np.zeros((rows, cols))
-        for r in range(rows):
-            for c in range(cols):
-                road[r, c] = 0 if template[r][c] == "#" else 1
-
         cars = [Car(agent1_start, agent1_dir, agent1_goal, False),
                 Car(agent2_start, agent2_dir, agent2_goal, False)]
 
-        return DriveState(map_id, road, cars)
+        return DriveState(map_id, self.roads[map_id], cars)
 
-    def distractors_for(self, state, n_samples):
+    def distractors_for(self, state, obs_agent, n_samples):
         return [(state, 1)] * n_samples
 
     def visualize(self, state, agent):
@@ -158,7 +218,7 @@ class DriveState(object):
         self.map_id = map_id
         self.road = road
         self.cars = cars
-        self.desc = [0]
+        self.desc = [(), ()]
 
     def obs(self):
         return tuple(self._obs(car) for car in self.cars)
@@ -175,7 +235,8 @@ class DriveState(object):
         goal[car.goal] = 1
         direction[car.dir] = 1
         return np.concatenate(
-                (map_features, pos.ravel(), goal.ravel(), direction))
+                (map_features, self.road.ravel(), pos.ravel(), goal.ravel(),
+                    direction))
 
     def _move(self, car, action):
         nr, nc = car.pos
@@ -278,7 +339,7 @@ class DriveState(object):
             reward -= 1
             stop = True
         reward -= 0.01
-        reward -= 0.1 * off
+        reward -= 0.5 * off
         #reward -= 0.05 * reverse
         reward += 0.5 * n_success
 

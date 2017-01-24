@@ -45,7 +45,6 @@ def run(task, rollout_ph, replay_ph, reconst_ph, model, desc_model, translator,
             total_score = 0.
             total_loss = 0.
             session.run(model.oo_update_target)
-            #session.run(desc_model.oo_update_target)
             saver.save(session, config.experiment_dir + "/model")
 
 def load(session, config):
@@ -133,7 +132,10 @@ def _do_step(
     for _ in range(n_any):
         episodes.append(replay[random.randint(len(replay))])
     for _ in range(config.trainer.n_batch_episodes):
-        desc_episodes.append(demonstrations[random.randint(len(demonstrations))])
+        demo = demonstrations[random.randint(len(demonstrations))]
+        offset = np.random.randint(max(1, len(demo)-config.trainer.n_batch_history))
+        sl = demo[offset:offset+config.trainer.n_batch_history]
+        desc_episodes.append(sl)
 
     slices = []
     for ep in episodes:

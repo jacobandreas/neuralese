@@ -1,10 +1,9 @@
-name: cards_train
+name: drive_train
 
 task: 
-  name: CardsTask
+  name: DriveTask
   train: true
   lexicon: false
-  evaluate: false
 
 channel:
   name: GaussianChannel
@@ -15,7 +14,6 @@ channel:
 model: 
   name: RecurrentQModel
   n_hidden: 256
-  n_embed: 64
   communicate: true
   discount: 0.9
   step_size: 0.003

@@ -15,8 +15,8 @@ def kl(d1, d2, w1, w2):
     return tot
 
 def skl(d1, d2, w1, w2):
-    #return kl(d1, d2, w1, w2) + kl(d2, d1, w2, w1)
-    return kl(d2, d1, w2, w1)
+    return kl(d1, d2, w1, w2) + kl(d2, d1, w2, w1)
+    #return kl(d2, d1, w2, w1)
 
 def _do_tr_rollout(
         task, rollout_ph, model, desc_model, desc_to_code, code_to_desc,
@@ -104,7 +104,7 @@ def run(task, rollout_ph, replay_ph, reconst_ph, model, desc_model, translator,
     for i, state in enumerate(states):
         xb[i, :] = state.obs()[1]
         xa_true[i, :] = state.obs()[0]
-        distractors = task.distractors_for(state, config.trainer.n_distractors)
+        distractors = task.distractors_for(state, 1, config.trainer.n_distractors)
         distractor_vis = []
         for i_dis in range(len(distractors)):
             dis, _ = distractors[i_dis]
