@@ -1,5 +1,5 @@
-2017-01-25 14:49:13,993 INFO     BEGIN
-2017-01-25 14:49:13,993 INFO     struct {
+2017-01-25 15:00:26,892 INFO     BEGIN
+2017-01-25 15:00:26,892 INFO     struct {
     trainer:
         n_replay_episodes: 500
         good_fraction: 0.1
@@ -49,3 +49,7 @@
         n_msg: 64
     experiment_dir: 'experiments/color_eval'
 }
+2017-01-25 15:01:06,679 INFO     [cal]  	{'random': 0, 'human': 214}
+2017-01-25 15:02:14,079 INFO     [c,l]  	[ 0.63  0.73]
+2017-01-25 15:03:41,300 INFO     [l,c]  	[ 0.642  0.75 ]
+2017-01-25 15:03:41,300 INFO     

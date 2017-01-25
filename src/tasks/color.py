@@ -139,13 +139,8 @@ class ColorRefTask(RefTask):
         ctx2.paint()
         ctx2.fill()
 
-        #if agent == 0 and state.target == 1:
-        #    surf1, surf2 = surf2, surf1
-
-        print state.left
-        print rgb1
-        print state.right
-        print rgb2
+        if agent == 0 and state.target == 1:
+            surf1, surf2 = surf2, surf1
 
         name1 = "%d_a.png" % self.image_counter
         name2 = "%d_b.png" % self.image_counter

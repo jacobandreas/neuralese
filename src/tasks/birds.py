@@ -113,5 +113,12 @@ class BirdsRefTask(RefTask):
         html_template = "<img src='%s'>"
         return (html_template % url1) + (html_template % url2)
 
+    def turk_visualize(self, state, agent, loc):
+        left = state.left_data
+        right = state.right_data
+        if agent == 0 and state.target == 1:
+            left, right = right, left
+        return left, right
+
     def pp(self, indices):
         return " ".join([self.reverse_vocab[i] for i in indices])
