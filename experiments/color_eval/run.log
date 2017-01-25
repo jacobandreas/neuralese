@@ -1,5 +1,5 @@
-2017-01-25 14:45:52,424 INFO     BEGIN
-2017-01-25 14:45:52,424 INFO     struct {
+2017-01-25 14:49:13,993 INFO     BEGIN
+2017-01-25 14:49:13,993 INFO     struct {
     trainer:
         n_replay_episodes: 500
         good_fraction: 0.1

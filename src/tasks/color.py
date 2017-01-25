@@ -133,7 +133,7 @@ class ColorRefTask(RefTask):
 
         data2 = np.zeros((200, 200, 4), dtype=np.uint8)
         surf2 = cairo.ImageSurface.create_for_data(data2, cairo.FORMAT_ARGB32, 200, 200)
-        ctx2 = cairo.Context(surf1)
+        ctx2 = cairo.Context(surf2)
         rgb2 = colorsys.hsv_to_rgb(state.right[0], state.right[1], state.right[2])
         ctx2.set_source_rgb(*rgb2)
         ctx2.paint()
