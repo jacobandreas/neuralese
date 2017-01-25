@@ -116,8 +116,8 @@ class ColorRefTask(RefTask):
         s2 = state.right[1] * 100
         l2 = state.right[2] * 100
 
-        block1 = "<span style='display: inline-block; width: 20px; height: 20px; background: hsl(%s, %s%%, %s%%); border: 2px solid #000'></span>" % (h1, s1, l1)
-        block2 = "<span style='display: inline-block; width: 20px; height: 20px; background: hsl(%s, %s%%, %s%%); border: 2px solid #000'></span>" % (h2, s2, l2)
+        block1 = "<span style='display: inline-block; width: 20px; height: 20px; background: hsv(%s, %s%%, %s%%); border: 2px solid #000'></span>" % (h1, s1, l1)
+        block2 = "<span style='display: inline-block; width: 20px; height: 20px; background: hsv(%s, %s%%, %s%%); border: 2px solid #000'></span>" % (h2, s2, l2)
         if agent == 0 and state.target == 1:
             block1, block2 = block2, block1
         return block1 + " " + block2
@@ -126,19 +126,26 @@ class ColorRefTask(RefTask):
         data1 = np.zeros((200, 200, 4), dtype=np.uint8)
         surf1 = cairo.ImageSurface.create_for_data(data1, cairo.FORMAT_ARGB32, 200, 200)
         ctx1 = cairo.Context(surf1)
-        rgb1 = colorsys.hls_to_rgb(state.left[0], state.left[2], state.left[1])
+        rgb1 = colorsys.hsv_to_rgb(state.left[0], state.left[1], state.left[2])
         ctx1.set_source_rgb(*rgb1)
+        ctx1.paint()
         ctx1.fill()
 
         data2 = np.zeros((200, 200, 4), dtype=np.uint8)
         surf2 = cairo.ImageSurface.create_for_data(data2, cairo.FORMAT_ARGB32, 200, 200)
         ctx2 = cairo.Context(surf1)
-        rgb2 = colorsys.hls_to_rgb(state.right[0], state.right[2], state.right[1])
+        rgb2 = colorsys.hsv_to_rgb(state.right[0], state.right[1], state.right[2])
         ctx2.set_source_rgb(*rgb2)
-        ctx1.fill()
+        ctx2.paint()
+        ctx2.fill()
 
-        if agent == 0 and state.target == 1:
-            surf1, surf2 = surf2, surf1
+        #if agent == 0 and state.target == 1:
+        #    surf1, surf2 = surf2, surf1
+
+        print state.left
+        print rgb1
+        print state.right
+        print rgb2
 
         name1 = "%d_a.png" % self.image_counter
         name2 = "%d_b.png" % self.image_counter
