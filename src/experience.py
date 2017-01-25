@@ -9,9 +9,10 @@ class RolloutPlaceholders(object):
         t_x = []
         t_h = []
         t_z = []
-        t_q = []
-        t_desc = []
-        t_desc_h = []
+        t_fake_q = []
+        t_fake_l_msg = []
+        t_l_msg = []
+        t_l_h = []
         for i_agent in range(task.n_agents):
             t_x.append(tf.placeholder(
                     tf.float32, (config.trainer.n_rollout_episodes,
@@ -22,40 +23,43 @@ class RolloutPlaceholders(object):
             t_z.append(tf.placeholder(
                     tf.float32, (config.trainer.n_rollout_episodes,
                         config.channel.n_msg)))
-            t_q.append(tf.zeros(
+            t_fake_q.append(tf.zeros(
                     (config.trainer.n_rollout_episodes, task.n_actions[i_agent]),
                     tf.float32))
-            t_desc.append(tf.placeholder(
-                    tf.int32, (config.trainer.n_rollout_episodes,
-                        task.max_desc_len)))
-            t_desc_h.append(tf.placeholder(
+            t_fake_l_msg.append(tf.zeros(
+                    (config.trainer.n_rollout_episodes, len(task.lexicon))))
+            t_l_msg.append(tf.placeholder(
+                    tf.float32, (config.trainer.n_rollout_episodes,
+                        len(task.lexicon))))
+            t_l_h.append(tf.placeholder(
                     tf.float32, (config.trainer.n_rollout_episodes,
                         config.model.n_hidden)))
         self.t_x = tuple(t_x)
         self.t_h = tuple(t_h)
         self.t_z = tuple(t_z)
-        self.t_q = tuple(t_q)
-        self.t_desc = tuple(t_desc)
-        self.t_desc_h = tuple(t_desc_h)
+        self.t_fake_q = tuple(t_fake_q)
+        self.t_fake_l_msg = tuple(t_fake_l_msg)
+        self.t_l_msg = tuple(t_l_msg)
+        self.t_l_h = tuple(t_l_h)
 
-    def feed(self, hs, zs, desc_hs, worlds, task, config):
+    def feed(self, hs, zs, l_hs, worlds, task, config):
         out = {}
         obs = [w.obs() for w in worlds]
-        desc = [np.zeros((config.trainer.n_rollout_episodes, task.max_desc_len))
+        l_msg = [np.zeros((config.trainer.n_rollout_episodes, len(task.lexicon)))
                 for _ in range(task.n_agents)]
         for i, w in enumerate(worlds):
             for i_agent in range(task.n_agents):
-                desc[i_agent][i, :len(w.desc[i_agent])] = w.desc[i_agent]
+                l_msg[i_agent][i, :] = w.l_msg[i_agent]
         for i_t, t in enumerate(self.t_x):
             out[t] = [
                     obs[i][i_t] for i in range(config.trainer.n_rollout_episodes)]
-        for i_agent, t in enumerate(self.t_desc):
+        for i_agent, t in enumerate(self.t_l_msg):
             out[t] = [
-                    desc[i_agent][i, :] 
+                    l_msg[i_agent][i, :] 
                     for i in range(config.trainer.n_rollout_episodes)]
         out[self.t_h] = hs
         out[self.t_z] = zs
-        out[self.t_desc_h] = desc_hs
+        out[self.t_l_h] = l_hs
         return out
 
 class ReconstructionPlaceholders(object):
@@ -73,15 +77,15 @@ class ReconstructionPlaceholders(object):
                 tf.float32,
                 (config.trainer.n_batch_episodes, config.trainer.n_distractors,
                     task.n_features))
-        self.t_desc = tf.placeholder(tf.int32,
-                (config.trainer.n_batch_episodes, task.max_desc_len))
+        self.t_l_msg = tf.placeholder(tf.float32,
+                (config.trainer.n_batch_episodes, len(task.lexicon)))
 
     def feed(self, experiences, obs_agent, hidden_agent, task, config):
         xb = np.zeros((config.trainer.n_batch_episodes, task.n_features))
         z = np.zeros((config.trainer.n_batch_episodes, config.channel.n_msg))
-        desc = np.zeros(
-                (config.trainer.n_batch_episodes, task.max_desc_len),
-                dtype=np.int32)
+        l_msg = np.zeros(
+                (config.trainer.n_batch_episodes, len(task.lexicon)),
+                dtype=np.float32)
         xa_true = np.zeros((config.trainer.n_batch_episodes, task.n_features))
         xa_noise = np.zeros(
                 (config.trainer.n_batch_episodes, config.trainer.n_distractors,
@@ -92,7 +96,7 @@ class ReconstructionPlaceholders(object):
             message = experience.m1[1][hidden_agent]
             xb[i, :] = state.obs()[obs_agent]
             z[i, :] = message
-            desc[i, :len(state.desc[obs_agent])] = state.desc[obs_agent]
+            l_msg[i, :] = state.l_msg[obs_agent]
             xa_true[i, :] = state.obs()[hidden_agent]
             distractors = task.distractors_for(
                     state, obs_agent, config.trainer.n_distractors)
@@ -105,7 +109,7 @@ class ReconstructionPlaceholders(object):
             self.t_z: z,
             self.t_xa_true: xa_true,
             self.t_xa_noise: xa_noise,
-            self.t_desc: desc
+            self.t_l_msg: l_msg
         }
 
 class ReplayPlaceholders(object):
@@ -129,12 +133,14 @@ class ReplayPlaceholders(object):
         t_z_next = []
         t_h = []
         t_h_next = []
-        t_q = []
-        t_q_next = []
-        t_dh = []
-        t_dh_next = []
-        t_desc = []
-        t_desc_next = []
+        t_fake_q = []
+        t_fake_l_msg = []
+        t_l_h = []
+        t_l_h_next = []
+        t_l_msg = []
+        t_l_msg_next = []
+        t_l_msg_target = []
+        t_fakegen = []
         t_action = []
         t_action_index = []
         for i_agent in range(task.n_agents):
@@ -149,16 +155,21 @@ class ReplayPlaceholders(object):
                         config.trainer.n_batch_history,
                         task.n_features)))
 
-            t_desc.append(tf.placeholder(
-                    tf.int32,
+            t_l_msg.append(tf.placeholder(
+                    tf.float32,
                     (config.trainer.n_batch_episodes,
                         config.trainer.n_batch_history,
-                        task.max_desc_len)))
-            t_desc_next.append(tf.placeholder(
-                    tf.int32,
+                        len(task.lexicon))))
+            t_l_msg_next.append(tf.placeholder(
+                    tf.float32,
                     (config.trainer.n_batch_episodes,
                         config.trainer.n_batch_history,
-                        task.max_desc_len)))
+                        len(task.lexicon))))
+            t_l_msg_target.append(tf.placeholder(
+                    tf.float32,
+                    (config.trainer.n_batch_episodes,
+                        config.trainer.n_batch_history,
+                        len(task.lexicon))))
 
             t_z.append(tf.placeholder(
                     tf.float32,
@@ -174,18 +185,18 @@ class ReplayPlaceholders(object):
                     tf.float32,
                     (config.trainer.n_batch_episodes, config.model.n_hidden)))
 
-            t_dh.append(tf.placeholder(
+            t_l_h.append(tf.placeholder(
                     tf.float32,
                     (config.trainer.n_batch_episodes, config.model.n_hidden)))
-            t_dh_next.append(tf.placeholder(
+            t_l_h_next.append(tf.placeholder(
                     tf.float32,
                     (config.trainer.n_batch_episodes, config.model.n_hidden)))
 
-            t_q.append(tf.zeros(
+            t_fake_q.append(tf.zeros(
                     (config.trainer.n_batch_episodes, task.n_actions[i_agent]),
                     tf.float32))
-            t_q_next.append(tf.zeros(
-                    (config.trainer.n_batch_episodes, task.n_actions[i_agent]),
+            t_fake_l_msg.append(tf.zeros(
+                    (config.trainer.n_batch_episodes, len(task.lexicon)),
                     tf.float32))
 
             t_action.append(tf.placeholder(
@@ -203,12 +214,13 @@ class ReplayPlaceholders(object):
         self.t_z_next = tuple(t_z_next)
         self.t_h = tuple(t_h)
         self.t_h_next = tuple(t_h_next)
-        self.t_q = tuple(t_q)
-        self.t_q_next = tuple(t_q_next)
-        self.t_dh = tuple(t_dh)
-        self.t_dh_next = tuple(t_dh_next)
-        self.t_desc = tuple(t_desc)
-        self.t_desc_next = tuple(t_desc_next)
+        self.t_fake_q = tuple(t_fake_q)
+        self.t_l_h = tuple(t_l_h)
+        self.t_l_h_next = tuple(t_l_h_next)
+        self.t_l_msg = tuple(t_l_msg)
+        self.t_l_msg_next = tuple(t_l_msg_next)
+        self.t_l_msg_target = tuple(t_l_msg_target)
+        self.t_fake_l_msg = tuple(t_fake_l_msg)
         self.t_action = tuple(t_action)
         self.t_action_index = tuple(t_action_index)
 
@@ -226,12 +238,13 @@ class ReplayPlaceholders(object):
         h_next = []
         z = []
         z_next = []
-        dh = []
-        dh_next = []
+        l_h = []
+        l_h_next = []
         action = []
         action_index = []
-        desc = []
-        desc_next = []
+        l_msg = []
+        l_msg_next = []
+        l_msg_target = [None, None]
         for i_agent in range(task.n_agents):
             x.append(np.zeros((n_batch, n_history, task.n_features)))
             x_next.append(np.zeros((n_batch, n_history, task.n_features)))
@@ -239,13 +252,13 @@ class ReplayPlaceholders(object):
             h_next.append(np.zeros((n_batch, config.model.n_hidden)))
             z.append(np.zeros((n_batch, config.channel.n_msg)))
             z_next.append(np.zeros((n_batch, config.channel.n_msg)))
-            dh.append(np.zeros((n_batch, config.model.n_hidden)))
-            dh_next.append(np.zeros((n_batch, config.model.n_hidden)))
+            l_h.append(np.zeros((n_batch, config.model.n_hidden)))
+            l_h_next.append(np.zeros((n_batch, config.model.n_hidden)))
             action.append(
                     np.zeros((n_batch, n_history, task.n_actions[i_agent])))
             action_index.append(np.zeros((n_batch, n_history)))
-            desc.append(np.zeros((n_batch, n_history, task.max_desc_len)))
-            desc_next.append(np.zeros((n_batch, n_history, task.max_desc_len)))
+            l_msg.append(np.zeros((n_batch, n_history, len(task.lexicon))))
+            l_msg_next.append(np.zeros((n_batch, n_history, len(task.lexicon))))
 
         for i in range(n_batch):
             ep = episodes[i]
@@ -253,10 +266,10 @@ class ReplayPlaceholders(object):
                 if ep[0].m1 is not None:
                     h[i_agent][i, :] = ep[0].m1[0][i_agent]
                     z[i_agent][i, :] = ep[0].m1[1][i_agent]
-                    dh[i_agent][i, :] = ep[0].m1[2][i_agent]
+                    l_h[i_agent][i, :] = ep[0].m1[2][i_agent]
                     h_next[i_agent][i, :] = ep[0].m2[0][i_agent]
                     z_next[i_agent][i, :] = ep[0].m2[1][i_agent]
-                    dh_next[i_agent][i, :] = ep[0].m2[2][i_agent]
+                    l_h_next[i_agent][i, :] = ep[0].m2[2][i_agent]
             for j in range(len(ep)):
                 reward[i, j] = ep[j].r
                 terminal[i, j] = ep[j].t
@@ -266,10 +279,13 @@ class ReplayPlaceholders(object):
                     x_next[i_agent][i, j, :] = ep[j].s2.obs()[i_agent]
                     action[i_agent][i, j, ep[j].a[i_agent]] = 1
                     action_index[i_agent][i, j] = ep[j].a[i_agent]
-                    d1 = ep[j].s1.desc
-                    d2 = ep[j].s2.desc
-                    desc[i_agent][i, j, :len(d1[i_agent])] = d1[i_agent]
-                    desc_next[i_agent][i, j, :len(d2[i_agent])] = d2[i_agent]
+                    l1 = ep[j].s1.l_msg
+                    l2 = ep[j].s2.l_msg
+                    l_msg[i_agent][i, j, :] = l1[i_agent]
+                    l_msg_next[i_agent][i, j, :] = l2[i_agent]
+        assert task.n_agents == 2
+        l_msg_target[0] = l_msg_next[1]
+        l_msg_target[1] = l_msg_next[0]
 
         return {
             self.t_reward: reward,
@@ -281,10 +297,11 @@ class ReplayPlaceholders(object):
             self.t_h_next: h_next,
             self.t_z: z,
             self.t_z_next: z_next,
-            self.t_dh: dh,
-            self.t_dh_next: dh_next,
+            self.t_l_h: l_h,
+            self.t_l_h_next: l_h_next,
             self.t_action: action,
             self.t_action_index: action_index,
-            self.t_desc: desc,
-            self.t_desc_next: desc_next
+            self.t_l_msg: l_msg,
+            self.t_l_msg_next: l_msg_next,
+            self.t_l_msg_target: l_msg_target
         }

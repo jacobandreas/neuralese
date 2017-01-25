@@ -4,13 +4,15 @@ task:
   name: ColorRefTask
   train: true
   lexicon: false
+  visualize: false
+  calibrate: false
   evaluate: false
 
 channel:
   name: GaussianChannel
   normalize: true
   n_msg: 64
-  std: 0.5
+  std: 0.3
 
 model: 
   name: RecurrentQModel
@@ -20,22 +22,22 @@ model:
   discount: 0.9
   step_size: 0.003
   message_cost: 0.0
-  load: debug
+  feature_depth: 1
 
 translator:
   name: GenBeliefTranslator
   n_hidden: 128
   step_size: 0.0003
-  normalization: global
+  normalization: local
 
 trainer:
   n_replay_episodes: 500
   n_batch_episodes: 256
   n_rollout_episodes: 1
-  n_batch_history: 2
-  n_timeout: 2
-  good_fraction: 0.2
-  n_iters: 5000
+  n_batch_history: 3
+  n_timeout: 3
+  good_fraction: 0.1
+  n_iters: 3000
   n_update_iters: 100
   n_distractors: 1
   resume: false

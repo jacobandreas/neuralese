@@ -8,19 +8,21 @@ class RecurrentQModel(object):
         cell = CommCell(
                 task.n_agents, config.model.n_hidden, config.channel.n_msg,
                 task.n_actions, channel, communicate=config.model.communicate,
-                symmetric=task.symmetric)
+                symmetric=task.symmetric,
+                feature_depth=config.model.feature_depth)
 
         with tf.variable_scope("net") as scope:
             tt_replay_states, _ = tf.nn.dynamic_rnn(
                     cell, replay_ph.t_x, dtype=tf.float32, scope=scope,
-                    initial_state=(replay_ph.t_h, replay_ph.t_z, replay_ph.t_q))
+                    initial_state=(replay_ph.t_h, replay_ph.t_z,
+                        replay_ph.t_fake_q))
             tt_replay_h, tt_replay_z, tt_replay_q = tt_replay_states
 
             scope.reuse_variables()
 
             tt_rollout_states, _ = cell(
                     rollout_ph.t_x,
-                    (rollout_ph.t_h, rollout_ph.t_z, rollout_ph.t_q))
+                    (rollout_ph.t_h, rollout_ph.t_z, rollout_ph.t_fake_q))
             tt_rollout_h, tt_rollout_z, tt_rollout_q = tt_rollout_states
 
             v_net = tf.get_collection(
@@ -30,7 +32,7 @@ class RecurrentQModel(object):
             tt_replay_states_next, _ = tf.nn.dynamic_rnn(
                     cell, replay_ph.t_x_next, dtype=tf.float32, scope=scope,
                     initial_state=(replay_ph.t_h_next, replay_ph.t_z_next, 
-                        replay_ph.t_q_next))
+                        replay_ph.t_fake_q))
             tt_replay_h_next, tt_replay_z_next, tt_replay_q_next = \
                     tt_replay_states_next
 

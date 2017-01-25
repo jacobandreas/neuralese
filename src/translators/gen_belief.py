@@ -42,38 +42,58 @@ class GenBeliefTranslator(object):
                     assert False
 
             with tf.variable_scope("desc") as desc_scope:
-                t_indices = tf.constant(
-                        [[i] * task.max_desc_len 
-                            for i in range(config.trainer.n_batch_episodes)])
-                t_desc_indexed = tf.pack((t_indices, reconst_ph.t_desc), axis=2)
+                #t_indices = tf.constant(
+                #        [[i] * task.max_desc_len 
+                #            for i in range(config.trainer.n_batch_episodes)])
+                #t_desc_indexed = tf.pack((t_indices, reconst_ph.t_desc), axis=2)
+                #t_dist, self.v_desc = net.mlp(
+                #        t_xa_true_drop,
+                #        (config.translator.n_hidden, task.n_vocab))
+                #t_dist_norm = tf.nn.log_softmax(t_dist)
+                #self.debug_dist_norm = t_dist_norm
+                #self.debug_desc_indexed = t_desc_indexed
+                #t_logprobs = tf.gather_nd(t_dist_norm, t_desc_indexed)
+                #self.debug_gathered = t_logprobs
+                #t_desc_logprob = tf.reduce_sum(t_logprobs, axis=1)
+                #self.t_desc_loss = -tf.reduce_mean(t_desc_logprob)
                 t_dist, self.v_desc = net.mlp(
                         t_xa_true_drop,
-                        (config.translator.n_hidden, task.n_vocab))
-                t_dist_norm = tf.nn.log_softmax(t_dist)
-                self.debug_dist_norm = t_dist_norm
-                self.debug_desc_indexed = t_desc_indexed
-                t_logprobs = tf.gather_nd(t_dist_norm, t_desc_indexed)
-                self.debug_gathered = t_logprobs
-                t_desc_logprob = tf.reduce_sum(t_logprobs, axis=1)
+                        (config.translator.n_hidden, len(task.lexicon)))
+                self.t_dist = t_dist
+                t_desc_logprob = -tf.nn.softmax_cross_entropy_with_logits(
+                        t_dist, reconst_ph.t_l_msg)
                 self.t_desc_loss = -tf.reduce_mean(t_desc_logprob)
 
                 desc_scope.reuse_variables()
-                t_all_indices = tf.constant(
-                        [[[[i, d]] * task.max_desc_len for d in range(
-                                config.trainer.n_distractors + 1)] 
-                            for i in range(config.trainer.n_batch_episodes)])
-                t_desc_tile = tf.tile(
+
+                #t_all_indices = tf.constant(
+                #        [[[[i, d]] * task.max_desc_len for d in range(
+                #                config.trainer.n_distractors + 1)] 
+                #            for i in range(config.trainer.n_batch_episodes)])
+                #t_desc_tile = tf.tile(
+                #        tf.reshape(
+                #            reconst_ph.t_desc,
+                #            (config.trainer.n_batch_episodes, 1,
+                #                task.max_desc_len, 1)),
+                #        (1, config.trainer.n_distractors + 1, 1, 1))
+                #t_desc_all_indexed = tf.concat(3, (t_all_indices, t_desc_tile))
+                #t_all_dist, _ = net.mlp(
+                #        t_xa_drop, (config.translator.n_hidden, task.n_vocab))
+                #t_all_dist_norm = tf.nn.log_softmax(t_all_dist)
+                #t_all_logprobs = tf.gather_nd(t_all_dist_norm, t_desc_all_indexed)
+                #t_all_scores = tf.reduce_sum(t_all_logprobs, axis=2)
+                t_msg_tile = tf.tile(
                         tf.reshape(
-                            reconst_ph.t_desc,
+                            reconst_ph.t_l_msg,
                             (config.trainer.n_batch_episodes, 1,
-                                task.max_desc_len, 1)),
-                        (1, config.trainer.n_distractors + 1, 1, 1))
-                t_desc_all_indexed = tf.concat(3, (t_all_indices, t_desc_tile))
+                                len(task.lexicon))),
+                        (1, config.trainer.n_distractors + 1, 1))
                 t_all_dist, _ = net.mlp(
-                        t_xa_drop, (config.translator.n_hidden, task.n_vocab))
-                t_all_dist_norm = tf.nn.log_softmax(t_all_dist)
-                t_all_logprobs = tf.gather_nd(t_all_dist_norm, t_desc_all_indexed)
-                t_all_scores = tf.reduce_sum(t_all_logprobs, axis=2)
+                        t_xa_drop,
+                        (config.translator.n_hidden, len(task.lexicon)))
+                t_all_scores = -tf.nn.softmax_cross_entropy_with_logits(
+                        t_all_dist, t_msg_tile)
+
                 if config.translator.normalization == "global":
                     t_desc_belief_raw = tf.nn.softmax(tf.reshape(
                             t_all_scores, (1, -1)))
@@ -97,5 +117,6 @@ class GenBeliefTranslator(object):
             varz = self.v_model + self.v_desc
 
             self.t_loss = self.t_desc_loss + self.t_model_loss
+            #self.t_loss = self.t_desc_loss
             self.t_train_op = optimizer.minimize(
                     self.t_loss, var_list=varz)

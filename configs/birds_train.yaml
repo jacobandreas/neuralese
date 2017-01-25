@@ -4,13 +4,14 @@ task:
   name: BirdsRefTask
   train: true
   lexicon: false
+  calibrate: false
   evaluate: false
 
 channel:
   name: GaussianChannel
   normalize: true
   n_msg: 64
-  std: 0.5
+  std: 0.3
 
 model: 
   name: RecurrentQModel
@@ -20,12 +21,11 @@ model:
   discount: 0.9
   step_size: 0.003
   message_cost: 0.0
-  load: debug
 
 translator:
   name: GenBeliefTranslator
   n_hidden: 128
-  step_size: 0.0003
+  step_size: 0.003
   normalization: global
 
 trainer:

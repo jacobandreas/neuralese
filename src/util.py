@@ -1,6 +1,9 @@
 import importlib
 import re
 
+class Break(Exception):
+    pass
+
 class Struct:
     def __init__(self, **entries):
         rec_entries = {}

@@ -67,7 +67,7 @@ def _do_rollout(
         eps = max(
                 (1000. - i_iter) / 1000., 
                 0.1 * (10000. - i_iter) / 10000.,
-                0.)
+                0.01)
         for i in range(config.trainer.n_rollout_episodes):
             if done[i]:
                 continue
@@ -151,30 +151,11 @@ def _do_step(
     desc_loss, _ = session.run(
             [desc_model.t_loss, desc_model.t_train_op], desc_feed)
 
-    #if np.random.randint(20) == 0:
-    #    print
-    #    #print slices[0][0].s1.desc[1]
-    #    #print slices[0][0].s2.desc[1]
-    #    #print feed[replay_ph.t_z][0][0, :]
-    #    #print feed[replay_ph.t_z_next][0][0, :]
-    #    print "desc", feed[replay_ph.t_desc][1][0, 0, :]
-    #    print "desc n", feed[replay_ph.t_desc_next][1][0, 0, :]
-    #    desc_q, desc_q_next, desc_td = session.run([desc_model.t_q[1], 
-    #        desc_model.t_q_next[1], desc_model.t_td[1]], feed)
-    #    print "q", desc_q[0, ...] * feed[replay_ph.t_mask][0, :, np.newaxis]
-    #    print "q n", desc_q_next[0, ...] * feed[replay_ph.t_mask][0, :, np.newaxis]
-    #    print "td", desc_td[0, ...] * feed[replay_ph.t_mask][0, :]
-    #    print "answer", slices[0][0].s1.target, slices[0][0].s2.target
-    #    #print desc_td[0, ...] * feed[replay_ph.t_mask][0, :]
-    #    db1, db2, db3 = session.run([desc_model.t_debug_1, desc_model.t_debug_2,
-    #        desc_model.t_debug_3], feed)
-    #    print "fut", db1[0, 0]
-    #    print "rew", db2[0, 0]
-    #    print "chosen", db3[0, 0]
-    #    #print np.mean(feed[replay_ph.t_mask], axis=0)
-
+    tr_feed = reconst_ph.feed(
+            [e[random.randint(len(e))] for e in slices], 1, 0, task, config)
+    t_dist, = session.run([translator.t_dist], tr_feed)
+    msg = tr_feed[reconst_ph.t_l_msg]
     tr_loss, _ = session.run(
-            [translator.t_loss, translator.t_train_op],
-            reconst_ph.feed([e[random.randint(len(e))] for e in slices], 1, 0, task, config))
+            [translator.t_loss, translator.t_train_op], tr_feed)
 
     return [model_loss, desc_loss, tr_loss]

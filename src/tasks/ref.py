@@ -3,14 +3,15 @@ from experience import Experience
 import numpy as np
 
 class RefState(object):
-    def __init__(self, left, right, target, desc, left_data, right_data, first):
+    def __init__(self, left, right, target, desc, empty_desc, left_data, right_data, first):
         self.left = left
         self.right = right
         self.target = target
         self.left_data = left_data
         self.right_data = right_data
-        self.desc = ([], []) if first else ([], desc)
+        self.l_msg = (empty_desc, empty_desc) if first else (empty_desc, desc)
         self.real_desc = desc
+        self.empty_desc = empty_desc
         self.first = first
         assert target in (0, 1), "invalid target ID"
 
@@ -38,7 +39,7 @@ class RefState(object):
         assert action_a == 0
         succ = RefState(
                 self.left, self.right, self.target, self.real_desc,
-                self.left_data, self.right_data, first=False)
+                self.empty_desc, self.left_data, self.right_data, first=False)
         if self.first and action_b < 2:
             return succ, 0, True
         if action_b < 2:
@@ -58,12 +59,12 @@ class RefTask(object):
         target, distractor, desc, left_data, right_data = self.get_pair(fold)
         if self.random.rand() < 0.5:
             return RefState(
-                    target, distractor, 0, desc, left_data, right_data,
-                    first=True)
+                    target, distractor, 0, desc, self.empty_desc, left_data,
+                    right_data, first=True)
         else:
             return RefState(
-                    distractor, target, 1, desc, left_data, right_data,
-                    first=True)
+                    distractor, target, 1, desc, self.empty_desc, left_data,
+                    right_data, first=True)
 
     def get_demonstration(self, fold):
         state1 = self.get_instance(fold)
@@ -87,7 +88,7 @@ class RefTask(object):
                 tgt = (i + 1 - state.target) % 2
             out.append((
                 RefState(
-                    state.left, state.right, tgt, None, state.left_data,
+                    state.left, state.right, tgt, None, None, state.left_data,
                     state.right_data, state.first),
                 0.5))
         return out

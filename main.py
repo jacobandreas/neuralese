@@ -11,6 +11,8 @@ import translators
 
 import trainer
 import lexicographer
+import visualizer
+import calibrator
 import evaluator
 
 import logging
@@ -46,14 +48,22 @@ def main():
         trainer.load(session, config)
 
     if config.task.lexicon:
-        lexicographer.run(
-                task, rollout_ph, replay_ph, reconst_ph, model, desc_model,
-                translator, session, config)
+        lex = lexicographer.run(
+                task, rollout_ph, reconst_ph, model, desc_model, translator,
+                session, config)
+
+    if config.task.visualize:
+        visualizer.run(lex, task, config)
+
+    if config.task.calibrate:
+        calibrator.run(
+                task, rollout_ph, model, desc_model, lexicographer, session,
+                config)
 
     if config.task.evaluate:
         evaluator.run(
-                task, rollout_ph, replay_ph, reconst_ph, model, desc_model,
-                translator, session, config)
+                task, rollout_ph, replay_ph, reconst_ph, model, desc_model, lex,
+                session, config)
 
 def configure():
     tf.set_random_seed(0)

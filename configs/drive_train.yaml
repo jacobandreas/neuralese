@@ -8,14 +8,15 @@ task:
 
 channel:
   name: GaussianChannel
-  n_msg: 64
+  n_msg: 128
   normalize: true
   std: 0.0
 
 model: 
   name: RecurrentQModel
-  n_hidden: 512
+  n_hidden: 256
   n_embed: 64
+  feature_depth: 2
   communicate: true
   discount: 0.9
   step_size: 0.003
@@ -29,7 +30,7 @@ translator:
   normalization: global
 
 trainer:
-  n_replay_episodes: 500
+  n_replay_episodes: 5000
   n_batch_episodes: 256
   n_rollout_episodes: 1
   n_batch_history: 10

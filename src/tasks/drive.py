@@ -70,7 +70,7 @@ Car = namedtuple("Car", ["pos", "dir", "goal", "done"])
 
 N_FEATURES = (
     len(MAPS)
-    + MAP_SHAPE[0] * MAP_SHAPE[1] * 3
+    + MAP_SHAPE[0] * MAP_SHAPE[1] * 2
     + len(DIRS))
 
 
@@ -235,7 +235,9 @@ class DriveState(object):
         goal[car.goal] = 1
         direction[car.dir] = 1
         return np.concatenate(
-                (map_features, self.road.ravel(), pos.ravel(), goal.ravel(),
+                (map_features, 
+                    #self.road.ravel(), 
+                    pos.ravel(), goal.ravel(),
                     direction))
 
     def _move(self, car, action):
