@@ -1,0 +1,55 @@
+2017-01-25 14:25:43,708 INFO     BEGIN
+2017-01-25 14:25:43,708 INFO     struct {
+    trainer:
+        n_replay_episodes: 500
+        good_fraction: 0.1
+        n_update_iters: 100
+        n_iters: 1600
+        resume: False
+        n_batch_history: 3
+        n_batch_episodes: 256
+        n_rollout_episodes: 1
+        n_distractors: 1
+        n_timeout: 3
+    task:
+        lexicon: True
+        name: 'ColorRefTask'
+        calibrate: True
+        visualize: True
+        evaluate: True
+        train: False
+        turkify: True
+    name: 'color_eval'
+    lexicographer:
+        l_agent: 1
+        c_agent: 0
+        mode: 'belief'
+    translator:
+        step_size: 0.0003
+        name: 'GenBeliefTranslator'
+        normalization: 'local'
+        n_hidden: 128
+    model:
+        load: 'color_train'
+        message_cost: 0.0
+        name: 'RecurrentQModel'
+        communicate: True
+        n_embed: 64
+        discount: 0.9
+        step_size: 0.003
+        feature_depth: 1
+        n_hidden: 256
+    evaluator:
+        simulate_l: False
+        n_episodes: 100
+    channel:
+        normalize: True
+        std: 0.3
+        name: 'GaussianChannel'
+        n_msg: 64
+    experiment_dir: 'experiments/color_eval'
+}
+2017-01-25 14:26:32,590 INFO     [cal]  	{'random': 0, 'human': 214}
+2017-01-25 14:27:53,359 INFO     [c,l]  	[ 0.63  0.73]
+2017-01-25 14:29:15,635 INFO     [l,c]  	[ 0.642  0.75 ]
+2017-01-25 14:29:15,635 INFO     
