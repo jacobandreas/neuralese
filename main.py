@@ -53,18 +53,18 @@ def main():
                 task, rollout_ph, reconst_ph, model, desc_model, translator,
                 session, config)
 
-    #if config.task.visualize:
-    #    visualizer.run(lex, task, config)
+    if config.task.visualize:
+        visualizer.run(lex, task, config)
 
-    #if config.task.calibrate:
-    #    calibrator.run(
-    #            task, rollout_ph, model, desc_model, lexicographer, session,
-    #            config)
+    if config.task.calibrate:
+        calibrator.run(
+                task, rollout_ph, model, desc_model, lexicographer, session,
+                config)
 
-    #if config.task.evaluate:
-    #    evaluator.run(
-    #            task, rollout_ph, replay_ph, reconst_ph, model, desc_model, lex,
-    #            session, config)
+    if config.task.evaluate:
+        evaluator.run(
+                task, rollout_ph, replay_ph, reconst_ph, model, desc_model, lex,
+                session, config)
 
     if config.task.turkify:
         turkifier.run(task, rollout_ph, model, lex, session, config)

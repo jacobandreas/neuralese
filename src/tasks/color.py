@@ -124,14 +124,14 @@ class ColorRefTask(RefTask):
 
     def turk_visualize(self, state, agent, loc):
         data1 = np.zeros((200, 200, 4), dtype=np.uint8)
-        surf1 = cairo.ImageSurface.create_for_data(data, cairo.FORMAT_ARGB32, 200, 200)
+        surf1 = cairo.ImageSurface.create_for_data(data1, cairo.FORMAT_ARGB32, 200, 200)
         ctx1 = cairo.Context(surf1)
         rgb1 = colorsys.hls_to_rgb(state.left[0], state.left[2], state.left[1])
         ctx1.set_source_rgb(*rgb1)
         ctx1.fill()
 
         data2 = np.zeros((200, 200, 4), dtype=np.uint8)
-        surf2 = cairo.ImageSurface.create_for_data(data, cairo.FORMAT_ARGB32, 200, 200)
+        surf2 = cairo.ImageSurface.create_for_data(data2, cairo.FORMAT_ARGB32, 200, 200)
         ctx2 = cairo.Context(surf1)
         rgb2 = colorsys.hls_to_rgb(state.right[0], state.right[2], state.right[1])
         ctx2.set_source_rgb(*rgb2)
@@ -145,6 +145,7 @@ class ColorRefTask(RefTask):
 
         surf1.write_to_png(os.path.join(loc, name1))
         surf2.write_to_png(os.path.join(loc, name2))
+        self.image_counter += 1
 
         return name1, name2
 

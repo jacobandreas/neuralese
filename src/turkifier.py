@@ -2,6 +2,7 @@ from tasks.ref import RefTask
 
 import numpy as np
 import tensorflow as tf
+import os
 
 def _sample_ref(
         task, rollout_ph, model, code_to_desc, session, config, h0, z0, fold):
@@ -23,13 +24,19 @@ def run(task, rollout_ph, model, lexicographer, session, config):
     h0, z0, _ = session.run(model.zero_state(1, tf.float32))
     count = config.evaluator.n_episodes
     out = []
+
+    turk_dir = config.experiment_dir + "/turk_files"
+    os.mkdir(turk_dir)
+
     for _ in range(count):
         state, l_msg, correct_action = _sample_ref(
                 task, rollout_ph, model, lexicographer.c_to_l, session, config,
                 h0, z0, "test")
-        out.append((task.visualize(state, 1), l_msg, str(correct_action)))
+
+        tag1, tag2 = task.turk_visualize(state, 0, turk_dir)
+        out.append((tag1, tag2, l_msg, str(correct_action)))
 
     with open(config.experiment_dir + "/turk.csv", "w") as turk_f:
-        print >>turk_f, "vis,msg,target"
-        for vis, msg, target in out:
-            print >>turk_f, '"%s",%s,%s' % (vis, msg, target)
+        print >>turk_f, "tag1,tag2,msg,target"
+        for row in out:
+            print >>turk_f, '%s,%s,%s,%s' % row
