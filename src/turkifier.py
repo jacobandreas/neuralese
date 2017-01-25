@@ -15,7 +15,7 @@ def _sample_ref(
     code = zs_[0][0, :]
     l_descs = code_to_desc(code)[:5]
     l_ens = [" ".join(task.reverse_vocab[w] for w in d) for d in l_descs]
-    l_en = ", ".join(l_ens)
+    l_en = "; ".join(l_ens)
     return state, l_en, state.target
 
 def run(task, rollout_ph, model, lexicographer, session, config):
