@@ -24,21 +24,24 @@ def run(task, rollout_ph, replay_ph, reconst_ph, model, desc_model, translator,
     total_loss = 0.
     h0, z0, _ = session.run(
             model.zero_state(config.trainer.n_rollout_episodes, tf.float32))
-    for i_iter in range(config.trainer.n_iters):
+    max_iters = max(config.trainer.n_iters, config.trainer.n_desc_iters)
+    for i_iter in range(max_iters):
         score = _do_rollout(
                 task, rollout_ph, model, desc_model, replay, good_replay,
                 session, config, i_iter, h0, z0)
         demonstrations.append(task.get_demonstration("train"))
         loss = _do_step(
                 task, replay_ph, reconst_ph, model, desc_model, translator,
-                replay, good_replay, demonstrations, session, config)
+                replay, good_replay, demonstrations, session, config,
+                i_iter < config.trainer.n_iters,
+                i_iter < config.trainer.n_desc_iters)
         total_score += np.asarray(score)
         total_loss += np.asarray(loss)
 
         if (i_iter + 1) % (config.trainer.n_update_iters) == 0:
             total_score /= config.trainer.n_update_iters
             total_loss /= config.trainer.n_update_iters
-            logging.info("[iter] " + "\t%d", i_iter)
+            logging.info("[iter] " + "\t%d", i_iter+1)
             logging.info("[score]" + "\t%2.4f" * total_score.size, *total_score)
             logging.info("[loss] " + "\t%2.4f" * total_loss.size, *total_loss)
             logging.info("")
@@ -46,6 +49,20 @@ def run(task, rollout_ph, replay_ph, reconst_ph, model, desc_model, translator,
             total_loss = 0.
             session.run(model.oo_update_target)
             saver.save(session, config.experiment_dir + "/model")
+
+            if (i_iter + 1) % (2 * config.trainer.n_update_iters) == 0:
+                import lexicographer
+                import evaluator
+                import calibrator
+                lex = lexicographer.run(
+                        task, rollout_ph, reconst_ph, model, desc_model,
+                        translator, session, config)
+                calibrator.run(
+                        task, rollout_ph, model, desc_model, lex, session,
+                        config)
+                evaluator.run(
+                        task, rollout_ph, replay_ph, reconst_ph, model,
+                        desc_model, lex, session, config, "val")
 
 def load(session, config):
     saver = tf.train.Saver()
@@ -119,7 +136,7 @@ def _do_rollout(
 #@profile
 def _do_step(
         task, replay_ph, reconst_ph, model, desc_model, translator, replay,
-        good_replay, demonstrations, session, config):
+        good_replay, demonstrations, session, config, update_model, update_desc):
     n_good = int(config.trainer.n_batch_episodes * config.trainer.good_fraction)
     n_any = config.trainer.n_batch_episodes - n_good
     if (len(replay) < n_any or len(good_replay) < n_good
@@ -144,18 +161,23 @@ def _do_step(
         sl = ep[offset:offset+config.trainer.n_batch_history]
         slices.append(sl)
 
-    feed = replay_ph.feed(slices, task, config)
-    model_loss, _ = session.run([model.t_loss, model.t_train_op], feed)
+    model_loss = tr_loss = 0
+    if update_model:
+        feed = replay_ph.feed(slices, task, config)
+        model_loss, _ = session.run([model.t_loss, model.t_train_op], feed)
 
-    desc_feed = replay_ph.feed(desc_episodes, task, config)
-    desc_loss, _ = session.run(
-            [desc_model.t_loss, desc_model.t_train_op], desc_feed)
 
-    tr_feed = reconst_ph.feed(
-            [e[random.randint(len(e))] for e in slices], 1, 0, task, config)
-    t_dist, = session.run([translator.t_dist], tr_feed)
-    msg = tr_feed[reconst_ph.t_l_msg]
-    tr_loss, _ = session.run(
-            [translator.t_loss, translator.t_train_op], tr_feed)
+        tr_feed = reconst_ph.feed(
+                [e[random.randint(len(e))] for e in slices], 1, 0, task, config)
+        t_dist, = session.run([translator.t_dist], tr_feed)
+        msg = tr_feed[reconst_ph.t_l_msg]
+        tr_loss, _ = session.run(
+                [translator.t_loss, translator.t_train_op], tr_feed)
+
+    desc_loss = 0
+    if update_desc:
+        desc_feed = replay_ph.feed(desc_episodes, task, config)
+        desc_loss, _ = session.run(
+                [desc_model.t_loss, desc_model.t_train_op], desc_feed)
 
     return [model_loss, desc_loss, tr_loss]

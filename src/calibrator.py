@@ -1,7 +1,7 @@
 from tasks.ref import RefTask
 import trainer
-from util import Break
 
+import logging
 import numpy as np
 import tensorflow as tf
 
@@ -13,17 +13,17 @@ def run(task, rollout_ph, model, desc_model, lexicographer, session, config):
             task.get_demonstration("val") 
             for _ in range(config.trainer.n_batch_episodes)]
 
-    randomized = []
-    for _ in range(config.trainer.n_batch_episodes):
-        ep = task.get_demonstration("val")
-        for transition in ep:
-            for i_agent in range(task.n_agents):
-                transition.s1.l_msg = list(transition.s1.l_msg)
-                transition.s1.l_msg[i_agent] = np.zeros(len(task.lexicon))
-                transition.s1.l_msg[i_agent][
-                        random.randint(len(task.lexicon))] = 1
-                transition.s1.l_msg = tuple(transition.s1.l_msg)
-        randomized.append(ep)
+    #randomized = []
+    #for _ in range(config.trainer.n_batch_episodes):
+    #    ep = task.get_demonstration("val")
+    #    for transition in ep:
+    #        for i_agent in range(task.n_agents):
+    #            transition.s1.l_msg = list(transition.s1.l_msg)
+    #            transition.s1.l_msg[i_agent] = np.zeros(len(task.lexicon))
+    #            transition.s1.l_msg[i_agent][
+    #                    random.randint(len(task.lexicon))] = 1
+    #            transition.s1.l_msg = tuple(transition.s1.l_msg)
+    #    randomized.append(ep)
 
     #rollouts = []
     #for _ in range(config.trainer.n_batch_episodes):
@@ -35,7 +35,7 @@ def run(task, rollout_ph, model, desc_model, lexicographer, session, config):
     actor_agree = {"human": 0, "random": 0}
     count = {"human": 0, "random": 0}
 
-    for seqs, source in [(demonstrations, "human"), (randomized, "random")]:
+    for seqs, source in [(demonstrations, "human")]: #, (randomized, "random")]:
         for ep in seqs:
             hs = h0
             for t, transition in enumerate(ep):
@@ -46,10 +46,14 @@ def run(task, rollout_ph, model, desc_model, lexicographer, session, config):
                 if isinstance(task, RefTask):
                     if t > 0:
                         count[source] += 1
-                        actor_agree[source] += probs[1][transition.a[1]]
+                        if np.argmax(probs[1]) == transition.a[1]:
+                            actor_agree[source] += 1
+                        #actor_agree[source] += probs[1][transition.a[1]]
                 else:
                     assert False
                 hs = hs_
+
+    logging.info("[cal]  \t" + str(actor_agree))
 
     with open(config.experiment_dir + "/calibrate.txt", "w") as cal_f:
         print >>cal_f, "speaker agreement", speaker_agree

@@ -6,6 +6,7 @@ task:
   lexicon: true
   calibrate: true
   evaluate: true
+  turkify: true
 
 channel:
   name: GaussianChannel

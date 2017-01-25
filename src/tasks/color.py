@@ -111,11 +111,11 @@ class ColorRefTask(RefTask):
         s2 = state.right[1] * 100
         l2 = state.right[2] * 100
 
-        block1 = '<span style="display: inline-block; width: 20px; height: 20px; background: hsl(%s, %s%%, %s%%); border: 2px solid #000"></span>' % (h1, s1, l1)
-        block2 = '<span style="display: inline-block; width: 20px; height: 20px; background: hsl(%s, %s%%, %s%%); border: 2px solid #000"></span>' % (h2, s2, l2)
+        block1 = "<span style='display: inline-block; width: 20px; height: 20px; background: hsl(%s, %s%%, %s%%); border: 2px solid #000'></span>" % (h1, s1, l1)
+        block2 = "<span style='display: inline-block; width: 20px; height: 20px; background: hsl(%s, %s%%, %s%%); border: 2px solid #000'></span>" % (h2, s2, l2)
         if agent == 0 and state.target == 1:
             block1, block2 = block2, block1
-        return block1 + "\n" + block2
+        return block1 + " " + block2
 
     def pp(self, indices):
         return " ".join([self.reverse_vocab[i] for i in indices])

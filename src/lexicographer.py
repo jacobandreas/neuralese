@@ -115,7 +115,7 @@ class Lexicographer(object):
 
     def c_to_l(self, code):
         if not code.any():
-            return []
+            return [[0]]
         code_belief, code_weights = self.compute_code_belief(code)
         if self.config.lexicographer.mode == "belief":
             comparator = skl
