@@ -4,16 +4,19 @@ task:
   name: DriveTask
   train: true
   lexicon: false
+  evaluate: false
 
 channel:
   name: GaussianChannel
-  n_msg: 32
+  n_msg: 128
   normalize: true
-  std: 0.5
+  std: 0.0
 
 model: 
   name: RecurrentQModel
   n_hidden: 256
+  n_embed: 64
+  feature_depth: 2
   communicate: true
   discount: 0.9
   step_size: 0.003
@@ -27,12 +30,12 @@ translator:
   normalization: global
 
 trainer:
-  n_replay_episodes: 500
+  n_replay_episodes: 5000
   n_batch_episodes: 256
   n_rollout_episodes: 1
   n_batch_history: 10
-  n_timeout: 100
-  good_fraction: 0.2
+  n_timeout: 20
+  good_fraction: 0.1
   n_iters: 40000
   n_update_iters: 100
   n_distractors: 1

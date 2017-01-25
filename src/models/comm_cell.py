@@ -5,13 +5,14 @@ import tensorflow as tf
 class CommCell(tf.nn.rnn_cell.RNNCell):
     def __init__(
             self, n_agents, n_hidden, n_comm, n_out, channel, communicate,
-            symmetric):
+            symmetric, feature_depth):
         self.n_agents = n_agents
         self.n_hidden = n_hidden
         self.n_comm = n_comm
         self.n_out = n_out if isinstance(n_out, tuple) else (n_out,) * n_agents
         self.communicate = communicate
         self.symmetric = symmetric
+        self.feature_depth = feature_depth
         self.channel = channel
 
         self.agent_scopes = []
@@ -66,7 +67,8 @@ class CommCell(tf.nn.rnn_cell.RNNCell):
                 with tf.variable_scope(self.agent_scopes[i_agent],
                         reuse=(i_agent > 0 and self.reuse_agent_scope)):
                     hidden, _ = net.mlp(
-                            features[i_agent], (self.n_hidden,),
+                            features[i_agent],
+                            (self.n_hidden,) * self.feature_depth,
                             final_nonlinearity=True)
                     _, next_state = base_cell(hidden, states[i_agent])
                     with tf.variable_scope("comm"):

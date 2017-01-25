@@ -1,31 +1,30 @@
-name: birds_lex
+name: drive_train
 
 task: 
-  name: BirdsRefTask
-  train: false
-  lexicon: true
+  name: DriveTask
+  train: true
+  lexicon: false
 
 channel:
   name: GaussianChannel
+  n_msg: 32
   normalize: true
-  n_msg: 128
-  std: 0.0
+  std: 0.5
 
 model: 
   name: RecurrentQModel
   n_hidden: 256
-  n_embed: 64
   communicate: true
   discount: 0.9
   step_size: 0.003
-  message_cost: 0.000
-  load: birds_train
+  message_cost: 0
+  load: drive_train
 
 translator:
   name: GenBeliefTranslator
   n_hidden: 128
   step_size: 0.003
-  normalization: local
+  normalization: global
 
 trainer:
   n_replay_episodes: 500
@@ -34,6 +33,7 @@ trainer:
   n_batch_history: 10
   n_timeout: 100
   good_fraction: 0.2
-  n_iters: 20000
+  n_iters: 40000
   n_update_iters: 100
   n_distractors: 1
+  resume: false

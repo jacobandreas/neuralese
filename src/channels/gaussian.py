@@ -6,8 +6,6 @@ class GaussianChannel(object):
         self.normalize = config.channel.normalize
 
     def transmit(self, msg):
-        noised = msg + tf.random_normal(tf.shape(msg), stddev=self.std)
         if self.normalize:
-            return tf.nn.l2_normalize(noised, 1)
-        else:
-            return noised
+            msg = tf.nn.l2_normalize(msg, 1)
+        return msg + tf.random_normal(tf.shape(msg), stddev=self.std)

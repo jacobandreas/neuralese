@@ -3,14 +3,17 @@ name: color_eval
 task: 
   name: ColorRefTask
   train: false
-  lexicon: false
+  lexicon: true
+  visualize: true
+  calibrate: true
   evaluate: true
+  turkify: true
 
 channel:
   name: GaussianChannel
   normalize: true
   n_msg: 64
-  std: 0.5
+  std: 0.3
 
 model: 
   name: RecurrentQModel
@@ -20,6 +23,7 @@ model:
   discount: 0.9
   step_size: 0.003
   message_cost: 0.0
+  feature_depth: 1
   load: color_train
 
 translator:
@@ -32,14 +36,19 @@ trainer:
   n_replay_episodes: 500
   n_batch_episodes: 256
   n_rollout_episodes: 1
-  n_batch_history: 2
-  n_timeout: 2
-  good_fraction: 0.2
-  n_iters: 20000
+  n_batch_history: 3
+  n_timeout: 3
+  good_fraction: 0.1
+  n_iters: 1600
   n_update_iters: 100
   n_distractors: 1
   resume: false
 
+lexicographer:
+  c_agent: 0
+  l_agent: 1
+  mode: belief
+
 evaluator:
-  code_agent: 0
-  desc_agent: 1
+  simulate_l: false
+  n_episodes: 100

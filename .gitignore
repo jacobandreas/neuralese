@@ -98,5 +98,4 @@ data/
 saves/
 logs/
 experiments/
-server_logs/
 *.lprof

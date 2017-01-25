@@ -68,12 +68,15 @@ class DescriptionQModel(object):
                 task.n_agents, task.n_vocab, config.model.n_hidden,
                 task.n_actions, task.symmetric)
 
+        replay_x = [tf.nn.dropout(x, 0.9) for x in replay_ph.t_x]
+        replay_x_next = [tf.nn.dropout(x, 0.9) for x in replay_ph.t_x_next]
+
         with tf.variable_scope("desc_net") as scope:
             tt_embeddings = embed_all(
                     replay_ph.t_desc, task.n_vocab, config.model.n_embed)
             tt_features = tuple(
                     tf.concat(2, (e, x)) for e, x
-                    in zip(tt_embeddings, replay_ph.t_x))
+                    in zip(tt_embeddings, replay_x))
             tt_replay_states, _ = tf.nn.dynamic_rnn(
                     cell, tt_features, dtype=tf.float32, scope=scope,
                     initial_state=(replay_ph.t_dh, replay_ph.t_q))
@@ -98,7 +101,7 @@ class DescriptionQModel(object):
                     replay_ph.t_desc_next, task.n_vocab, config.model.n_embed)
             tt_features_next = tuple(
                     tf.concat(2, (e, x)) for e, x
-                    in zip(tt_embeddings_next, replay_ph.t_x_next))
+                    in zip(tt_embeddings_next, replay_x_next))
             tt_replay_states_next, _ = tf.nn.dynamic_rnn(
                     cell, tt_features_next, dtype=tf.float32, scope=scope,
                     initial_state=(replay_ph.t_dh_next, replay_ph.t_q_next))
@@ -140,6 +143,9 @@ class DescriptionQModel(object):
         #self.t_q_n = tt_replay_q_next
         #self.t_rew = replay_ph.t_reward
 
-        self.t_train_op = optimizer.minimize(t_loss, var_list=v_net)
+        grads = tf.gradients(t_loss, v_net)
+        clipped_grads, norm = tf.clip_by_global_norm(grads, 1)
+        self.t_train_op = optimizer.apply_gradients(zip(clipped_grads, v_net))
+        #self.t_train_op = optimizer.minimize(t_loss, var_list=v_net)
         self.oo_update_target = [
                 vn.assign(v) for v, vn in zip(v_net, v_net_next)]

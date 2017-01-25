@@ -5,13 +5,16 @@ from util import Struct
 
 import tasks
 import models
-import models.desc_q
+import models.desc_im
 import channels
 import translators
 
 import trainer
 import lexicographer
+import visualizer
+import calibrator
 import evaluator
+import turkifier
 
 import logging
 import numpy as np
@@ -27,7 +30,7 @@ def main():
     task = tasks.load(config)
     channel = channels.load(config)
     model = models.load(config)
-    desc_model = models.desc_q.DescriptionQModel()
+    desc_model = models.desc_im.DescriptionImitationModel()
     translator = translators.load(config)
 
     rollout_ph = experience.RolloutPlaceholders(task, config)
@@ -46,14 +49,25 @@ def main():
         trainer.load(session, config)
 
     if config.task.lexicon:
-        lexicographer.run(
-                task, rollout_ph, replay_ph, reconst_ph, model, desc_model,
-                translator, session, config)
+        lex = lexicographer.run(
+                task, rollout_ph, reconst_ph, model, desc_model, translator,
+                session, config)
 
-    if config.task.evaluate:
-        evaluator.run(
-                task, rollout_ph, replay_ph, reconst_ph, model, desc_model,
-                translator, session, config)
+    #if config.task.visualize:
+    #    visualizer.run(lex, task, config)
+
+    #if config.task.calibrate:
+    #    calibrator.run(
+    #            task, rollout_ph, model, desc_model, lexicographer, session,
+    #            config)
+
+    #if config.task.evaluate:
+    #    evaluator.run(
+    #            task, rollout_ph, replay_ph, reconst_ph, model, desc_model, lex,
+    #            session, config)
+
+    if config.task.turkify:
+        turkifier.run(task, rollout_ph, model, lex, session, config)
 
 def configure():
     tf.set_random_seed(0)

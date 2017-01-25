@@ -3,6 +3,44 @@ import numpy as np
 import os
 
 SIGHT_DIST = 3
+#LEGAL_WORDS = ["top", "bottom", "left", "right", "middle"]
+
+VOCAB = {
+    "_": 0,
+    "left": 1,
+    "right": 2,
+    "top": 3,
+    "bottom": 4,
+    "middle": 5
+}
+
+def pos_to_desc(r, c):
+    desc = []
+    if 0 <= r < 0.33:
+        desc.append(VOCAB["top"])
+    elif 0.33 <= r < 0.67:
+        desc.append(VOCAB["middle"])
+    else:
+        desc.append(VOCAB["bottom"])
+
+    if 0 <= c < 0.33:
+        desc.append(VOCAB["left"])
+    elif 0.33 <= c < 0.67:
+        desc.append(VOCAB["middle"])
+    else:
+        desc.append(VOCAB["right"])
+
+    return desc
+
+def get_free(maze, excluded):
+    while True:
+        r = np.random.randint(maze.shape[0])
+        c = np.random.randint(maze.shape[1])
+        if maze[r, c] == 1:
+            continue
+        if (r, c) in excluded:
+            continue
+        return (r, c)
 
 class CardsState(object):
     def __init__(self, maze, maze_feats, goal_pos, agent_a_pos, agent_b_pos):
@@ -11,6 +49,11 @@ class CardsState(object):
         self.goal_pos = goal_pos
         self.agent_a_pos = agent_a_pos
         self.agent_b_pos = agent_b_pos
+        ar = 1. * agent_a_pos[0] / maze.shape[0]
+        ac = 1. * agent_a_pos[1] / maze.shape[1]
+        br = 1. * agent_b_pos[0] / maze.shape[0]
+        bc = 1. * agent_b_pos[1] / maze.shape[1]
+        self.desc = [pos_to_desc(ar, ac), pos_to_desc(br, bc)]
 
     def _obs(self, agent_pos):
         view_feats = self.maze_feats[
@@ -19,7 +62,7 @@ class CardsState(object):
                 agent_pos[1]:agent_pos[1]+2*SIGHT_DIST]
 
         pos_feats = [
-                1. * agent_pos[0] / self.maze.shape[0], 
+                1. * agent_pos[0] / self.maze.shape[0],
                 1. * agent_pos[1] / self.maze.shape[1]]
 
         return np.concatenate((view_feats.ravel(), pos_feats))
@@ -60,7 +103,7 @@ class CardsState(object):
             stop = True
         return (
                 CardsState(
-                    self.maze, self.maze_feats, self.goal_pos, npos_a, npos_b), 
+                    self.maze, self.maze_feats, self.goal_pos, npos_a, npos_b),
                 reward, stop)
 
 class CardsTask(object):
@@ -68,7 +111,7 @@ class CardsTask(object):
         maze_strings = set()
         for group in ["01", "02"]:
             for transcript in os.listdir("data/cards/transcripts/%s" % group):
-                with open("data/cards/transcripts/%s/%s" % 
+                with open("data/cards/transcripts/%s/%s" %
                         (group, transcript)) as tfile:
                     lines = tfile.readlines()
                     elines = [l for l in lines if "CREATE_ENVIRONMENT" in l]
@@ -94,16 +137,10 @@ class CardsTask(object):
         self.n_agents = 2
         self.symmetric = True
 
-    def get_instance(self):
-        def get_free(maze, excluded):
-            while True:
-                r = np.random.randint(maze.shape[0])
-                c = np.random.randint(maze.shape[1])
-                if maze[r, c] == 1:
-                    continue
-                if (r, c) in excluded:
-                    continue
-                return (r, c)
+        self.max_desc_len = 2
+        self.n_vocab = 6
+
+    def get_instance(self, fold):
 
         maze = self.maze
         goal = get_free(maze, [])
@@ -125,3 +162,22 @@ class CardsTask(object):
                 SIGHT_DIST:SIGHT_DIST+self.maze.shape[1]] = self.maze
         pad_maze[1, SIGHT_DIST+goal_pos[0], SIGHT_DIST+goal_pos[1]] = 1
         return pad_maze
+
+    def distractors_for(self, state, obs_agent, n_samples):
+        out = []
+        for _ in range(n_samples):
+            if obs_agent == 0:
+                apos = state.agent_a_pos
+                bpos = np.asarray(get_free(
+                    state.maze,
+                    [tuple(state.goal_pos), tuple(state.agent_a_pos)]))
+            else:
+                apos = np.asarray(get_free(
+                    state.maze,
+                    [tuple(state.goal_pos), tuple(state.agent_b_pos)]))
+                bpos = state.agent_b_pos
+
+            out.append((
+                CardsState(state.maze, state.maze_feats, state.goal_pos, apos, bpos),
+                0.))
+        return out

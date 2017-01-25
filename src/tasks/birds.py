@@ -6,6 +6,7 @@ import numpy as np
 import pickle
 
 N_FEATURES = 256
+STOP = ["a", "the", "this", "it", "its", "and", "is", "are", "has", "have", "with", "on"]
 
 class BirdsRefTask(RefTask):
     def __init__(self):
@@ -16,8 +17,19 @@ class BirdsRefTask(RefTask):
         n_raw_features, = features.values()[0].shape
         projector = self.random.randn(N_FEATURES, n_raw_features)
         proj_features = {}
+        m1 = np.zeros(N_FEATURES)
+        m2 = np.zeros(N_FEATURES)
         for k, v in features.items():
-            proj_features[k] = np.dot(projector, v)
+            proj = np.dot(projector, v)
+            m1 += proj
+            m2 += proj ** 2
+            proj_features[k] = proj
+        m1 /= len(features)
+        m2 /= len(features)
+        std = np.sqrt(m2 - m1 ** 2)
+        for v in proj_features.values():
+            v -= m1
+            v /= std
         self.features = proj_features
         self.keys = sorted(self.features.keys())
         
@@ -37,60 +49,60 @@ class BirdsRefTask(RefTask):
                 desc = line[i_desc]
                 key = "/".join(url.split("/")[-2:])
                 desc = desc.lower().replace(".", "").replace(",", "")
-                anns[key] = desc.split()
+                anns[key] = tuple(desc.split())
         counts = defaultdict(lambda: 0)
         for desc in anns.values():
-            for word in desc:
-                counts[word] += 1
-        freq_words = sorted(counts.items(), key=lambda p: -p[1])
-        self.vocab = {"UNK": 0}
-        self.reverse_vocab = {0: "UNK"}
-        for word, count in freq_words[:100]:
-            i = len(self.vocab)
-            self.vocab[word] = i
-            self.reverse_vocab[i] = word
-        self.n_vocab = len(self.vocab)
-        self.descs = {}
-        self.max_desc_len = 0
-        for k, v in anns.items():
-            out = []
-            for word in v:
+            for i in range(len(desc) - 1):
+                bigram = desc[i:i+2]
+                counts[bigram] += 1
+        freq_terms = sorted(counts.items(), key=lambda p: -p[1])
+        freq_terms = [f for f in freq_terms if not any(w in STOP for w in f[0])]
+        freq_terms = [f[0] for f in freq_terms]
+        freq_terms = freq_terms[:50]
+
+        self.vocab = {"_": 0, "UNK": 1}
+        self.reverse_vocab = {0: "_", 1: "UNK"}
+        self.lexicon = [[0]]
+        for term in freq_terms:
+            for word in term:
                 if word in self.vocab:
-                    out.append(self.vocab[word])
-                else:
-                    out.append(0)
-            self.descs[k] = out
-            self.max_desc_len = max(self.max_desc_len, len(out))
+                    continue
+                index = len(self.vocab)
+                self.vocab[word] = index
+                self.reverse_vocab[index] = word
+            self.lexicon.append([self.vocab[w] for w in term])
 
-        ### self.vocab = {"UNK": 0, "foo": 1, "baz": 2}
-        ### self.reverse_vocab = {0: "UNK", 1: "foo", 2: "baz"}
-        ### self.descs = {}
-        ### for k in self.keys:
-        ###     #if k in self.folds["train"]:
-        ###     #    i = 1
-        ###     #else:
-        ###     #    i = 2
-        ###     i = 1 + self.random.randint(2)
-        ###     self.descs[k] = [i] * 2
-        ### self.max_desc_len = 2
-        ### self.n_vocab = 3
+        discarded = []
+        self.reps = {}
+        for k, desc in anns.items():
+            rep = np.zeros(len(self.lexicon))
+            out = []
+            for i_l, l in enumerate(self.lexicon):
+                if all(self.reverse_vocab[w] in desc for w in l):
+                    rep[i_l] = 1
+                    out += l
+            if len(out) == 0:
+                discarded.append(k)
+                continue
+            assert rep.any()
+            rep /= np.sum(rep)
+            self.reps[k] = rep
+        for k in discarded:
+            del anns[k]
+            for fold in self.folds.values():
+                if k in fold:
+                    fold.remove(k)
 
-        self.n_examples = len(self.keys)
-        #self.n_features = 2 * N_FEATURES
+        self.empty_desc = np.zeros(len(self.lexicon))
+        self.empty_desc[0] = 1
 
     def get_pair(self, fold):
         fold_keys = self.folds[fold]
         i1, i2 = self.random.randint(len(fold_keys), size=2)
         k1, k2 = fold_keys[i1], fold_keys[i2]
         f1, f2 = self.features[k1], self.features[k2]
-        desc = self.descs[k1]
-        if len(desc) - 1 == 0:
-            i_bigram = 0
-        else:
-            i_bigram = self.random.randint(len(desc)-1)
-        bigram = desc[i_bigram:i_bigram+2]
-        ### bigram = self.descs[k1]
-        return (f1, f2, bigram, k1, k2)
+        rep = self.reps[k1]
+        return (f1, f2, rep, k1, k2)
 
     def visualize(self, state, agent):
         url_template = "http://tomato.banatao.berkeley.edu/jda/codes/birds/CUB_200_2011/images/%s"
