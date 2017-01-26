@@ -14,11 +14,11 @@ def run(lex, task, config):
     }
 
     for state, distractors in zip(lex.states, lex.distractors):
-        vis_data["states"].append(task.visualize(state, config.lexicographer.l_agent))
+        vis_data["states"].append(task.visualize(state, config.lexicographer.c_agent))
         distractor_vis = []
         for i_dis in range(len(distractors)):
             dis, _ = distractors[i_dis]
-            distractor_vis.append(task.visualize(dis, config.lexicographer.l_agent))
+            distractor_vis.append(task.visualize(dis, config.lexicographer.c_agent))
         vis_data["distractors"].append(distractor_vis)
 
     for i, l_msg in enumerate(lex.l_msgs):

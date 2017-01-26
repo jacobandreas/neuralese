@@ -7,8 +7,8 @@ from collections import defaultdict
 import numpy as np
 import os
 
-MIN_COUNT = 4
-EXCLUDED = ["shit"]
+MIN_COUNT = 5
+EXCLUDED = ["shit", "very"]
 
 VAL_FRAC = 0.1
 TEST_FRAC = 0.1
@@ -108,19 +108,22 @@ class ColorRefTask(RefTask):
         return colors[i1, :], colors[i2, :], rep, None, None
 
     def visualize(self, state, agent):
-        h1 = state.left[0] * 360
-        s1 = state.left[1] * 100
-        l1 = state.left[2] * 100
+        r1, g1, b1 = colorsys.hsv_to_rgb(*state.left)
+        r1 = int(100 * r1)
+        g1 = int(100 * g1)
+        b1 = int(100 * b1)
 
-        h2 = state.right[0] * 360
-        s2 = state.right[1] * 100
-        l2 = state.right[2] * 100
+        r2, g2, b2 = colorsys.hsv_to_rgb(*state.right)
+        r2 = int(100 * r2)
+        g2 = int(100 * g2)
+        b2 = int(100 * b2)
 
-        block1 = "<span style='display: inline-block; width: 20px; height: 20px; background: hsv(%s, %s%%, %s%%); border: 2px solid #000'></span>" % (h1, s1, l1)
-        block2 = "<span style='display: inline-block; width: 20px; height: 20px; background: hsv(%s, %s%%, %s%%); border: 2px solid #000'></span>" % (h2, s2, l2)
+        block1 = "<span style='display: inline-block; width: 20px; height: 20px; background: rgb(%s%%, %s%%, %s%%); border: 2px solid #000'></span>" % (r1, g1, b1)
+        block2 = "<span style='display: inline-block; width: 20px; height: 20px; background: rgb(%s%%, %s%%, %s%%); border: 2px solid #000'></span>" % (r2, g2, b2)
         if agent == 0 and state.target == 1:
             block1, block2 = block2, block1
-        return block1 + " " + block2
+        #return block1 + " " + block2
+        return block1
 
     def turk_visualize(self, state, agent, loc):
         data1 = np.zeros((200, 200, 4), dtype=np.uint8)

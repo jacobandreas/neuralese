@@ -60,7 +60,8 @@ MAP_5 = """
 ##...###
 """
 
-MAPS = [MAP_1, MAP_2, MAP_3, MAP_4, MAP_5]
+#MAPS = [MAP_1, MAP_2, MAP_3, MAP_4, MAP_5]
+MAPS = [MAP_1, MAP_3, MAP_5]
 
 MAP_SHAPE = (8, 8)
 
@@ -84,6 +85,7 @@ class DriveTask(object):
         self.n_vocab = 1
         self.vocab = {"_": 0, "UNK": 1}
         self.reverse_vocab = {0: "_", 1: "UNK"}
+        self.lexicon = [[0]]
 
         self.roads = []
         for map_str in MAPS:
@@ -95,8 +97,8 @@ class DriveTask(object):
             self.roads.append(road)
 
         self.demonstrations = self.load_traces()
-        self.max_desc_len = max(len(d) for dem in self.demonstrations for ex in
-                dem for d in ex.s1.desc)
+        #self.max_desc_len = max(len(d) for dem in self.demonstrations for ex in
+        #        dem for d in ex.s1.desc)
 
     def load_traces(self):
         traces = []
@@ -114,7 +116,10 @@ class DriveTask(object):
                 for c in range(MAP_SHAPE[1]):
                     road[r, c] = init["road"][r][c]
 
-            map_id, = [i for i in range(len(MAPS)) if (self.roads[i] == road).all()]
+            maybe_map_id = [i for i in range(len(MAPS)) if (self.roads[i] == road).all()]
+            if len(maybe_map_id) == 0:
+                continue
+            map_id, = maybe_map_id
 
             cars = []
             for car_data in init["cars"]:
@@ -138,7 +143,7 @@ class DriveTask(object):
                 d2 = tokenize(inp2["message"])
                 desc = (d2, d1)
                 state_, reward, done = state.step(action)
-                state_.desc = desc
+                state_.l_msg = [(0), (0)] #desc
                 episode.append(Experience(
                     state, None, action, state_, None, reward, done))
                 state = state_
@@ -218,7 +223,7 @@ class DriveState(object):
         self.map_id = map_id
         self.road = road
         self.cars = cars
-        self.desc = [(), ()]
+        self.l_msg = [(0), (0)]
 
     def obs(self):
         return tuple(self._obs(car) for car in self.cars)

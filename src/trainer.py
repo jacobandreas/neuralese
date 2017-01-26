@@ -50,7 +50,8 @@ def run(task, rollout_ph, replay_ph, reconst_ph, model, desc_model, translator,
             session.run(model.oo_update_target)
             saver.save(session, config.experiment_dir + "/model")
 
-            if (i_iter + 1) % (2 * config.trainer.n_update_iters) == 0:
+            #if (i_iter + 1) % (2 * config.trainer.n_update_iters) == 0:
+            if False:
                 import lexicographer
                 import evaluator
                 import calibrator
@@ -83,7 +84,8 @@ def _do_rollout(
                 rollout_ph.feed(hs, zs, dhs, worlds, task, config))
         eps = max(
                 (1000. - i_iter) / 1000., 
-                0.1 * (10000. - i_iter) / 10000.,
+                #0.1 * (10000. - i_iter) / 10000.,
+                0.1 * (5000. - i_iter) / 5000.,
                 0.01)
         for i in range(config.trainer.n_rollout_episodes):
             if done[i]:
@@ -166,11 +168,13 @@ def _do_step(
         feed = replay_ph.feed(slices, task, config)
         model_loss, _ = session.run([model.t_loss, model.t_train_op], feed)
 
-
         tr_feed = reconst_ph.feed(
                 [e[random.randint(len(e))] for e in slices], 1, 0, task, config)
-        t_dist, = session.run([translator.t_dist], tr_feed)
-        msg = tr_feed[reconst_ph.t_l_msg]
+        #if np.random.randint(20) == 0:
+        #    t_dist, = session.run(
+        #            [translator.t_dist], tr_feed)
+        #    print tr_feed[reconst_ph.t_xa_true][0]
+        #    print t_dist[0]
         tr_loss, _ = session.run(
                 [translator.t_loss, translator.t_train_op], tr_feed)
 

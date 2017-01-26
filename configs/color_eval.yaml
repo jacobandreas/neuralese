@@ -28,8 +28,8 @@ model:
 
 translator:
   name: GenBeliefTranslator
-  n_hidden: 128
-  step_size: 0.0003
+  n_hidden: 256
+  step_size: 0.003
   normalization: local
 
 trainer:
@@ -51,4 +51,4 @@ lexicographer:
 
 evaluator:
   simulate_l: false
-  n_episodes: 100
+  n_episodes: 200

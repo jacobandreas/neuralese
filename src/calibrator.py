@@ -50,7 +50,8 @@ def run(task, rollout_ph, model, desc_model, lexicographer, session, config):
                             actor_agree[source] += 1
                         #actor_agree[source] += probs[1][transition.a[1]]
                 else:
-                    assert False
+                    pass
+                    #assert False
                 hs = hs_
 
     logging.info("[cal]  \t" + str(actor_agree))

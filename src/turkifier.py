@@ -33,7 +33,7 @@ def run(task, rollout_ph, model, lexicographer, session, config):
                 task, rollout_ph, model, lexicographer.c_to_l, session, config,
                 h0, z0, "test")
 
-        tag1, tag2 = task.turk_visualize(state, 0, turk_dir)
+        tag1, tag2 = task.turk_visualize(state, 1, turk_dir)
         out.append((tag1, tag2, l_msg, str(correct_action)))
 
     with open(config.experiment_dir + "/turk.csv", "w") as turk_f:

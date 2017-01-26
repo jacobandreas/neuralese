@@ -1,3 +1,0 @@
-speaker agreement {'random': 0, 'human': 0}
-actor agreement {'random': 0, 'human': 222}
-count {'random': 0, 'human': 256}

@@ -4,7 +4,10 @@ task:
   name: DriveTask
   train: true
   lexicon: false
+  visualize: false
+  calibrate: false
   evaluate: false
+  turkify: false
 
 channel:
   name: GaussianChannel
@@ -16,17 +19,16 @@ model:
   name: RecurrentQModel
   n_hidden: 256
   n_embed: 64
-  feature_depth: 2
+  feature_depth: 1
   communicate: true
   discount: 0.9
   step_size: 0.003
-  message_cost: 0
-  load: drive_train
+  message_cost: 0.0
 
 translator:
   name: GenBeliefTranslator
   n_hidden: 128
-  step_size: 0.003
+  step_size: 0.0003
   normalization: global
 
 trainer:
@@ -37,6 +39,16 @@ trainer:
   n_timeout: 20
   good_fraction: 0.1
   n_iters: 40000
+  n_desc_iters: 40000
   n_update_iters: 100
   n_distractors: 1
   resume: false
+
+lexicographer:
+  c_agent: 0
+  l_agent: 1
+  model: belief
+
+evaluator:
+  simulate_l: false
+  n_episodes: 50

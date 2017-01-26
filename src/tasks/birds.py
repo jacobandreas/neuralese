@@ -6,7 +6,10 @@ import numpy as np
 import pickle
 
 N_FEATURES = 256
-STOP = ["a", "the", "this", "it", "its", "and", "is", "are", "has", "have", "with", "on"]
+STOP = [
+    "a", "an", "the", "this", "it", "its", "and", "is", "are", "has", "have",
+    "with", "on", "in"
+]
 
 class BirdsRefTask(RefTask):
     def __init__(self):

@@ -11,8 +11,10 @@ task:
 channel:
   name: GaussianChannel
   normalize: true
-  n_msg: 64
-  std: 0.3
+  #n_msg: 64
+  n_msg: 128
+  #std: 0.3
+  std: 0
 
 model: 
   name: RecurrentQModel
@@ -28,7 +30,7 @@ translator:
   name: GenBeliefTranslator
   n_hidden: 128
   step_size: 0.0003
-  normalization: global
+  normalization: local
 
 trainer:
   n_replay_episodes: 500

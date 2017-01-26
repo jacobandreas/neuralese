@@ -35,9 +35,15 @@ def _do_tr_rollout(
             code = desc_to_code(world_.l_msg[code_agent])[0]
             zs_[desc_agent][i, :] = code
 
-            l_word = code_to_desc(zs_[code_agent][i, :])[0]
+            #l_word = code_to_desc(zs_[code_agent][i, :])[0]
+            #l_msg = np.zeros(len(task.lexicon))
+            #l_msg[task.lexicon.index(l_word)] += 1
+            l_words = code_to_desc(zs_[code_agent][i, :])[:5]
             l_msg = np.zeros(len(task.lexicon))
-            l_msg[task.lexicon.index(l_word)] += 1
+            for l_word in l_words:
+                l_msg[task.lexicon.index(l_word)] += 1
+            l_msg /= np.sum(l_msg)
+
             world_.l_msg = list(world_.l_msg)
             world_.l_msg[desc_agent] = l_msg
             world_.l_msg = tuple(world_.l_msg)
@@ -62,7 +68,7 @@ def _do_tr_rollout(
                 config.trainer.n_rollout_episodes)
 
 def run(task, rollout_ph, replay_ph, reconst_ph, model, desc_model,
-        lexicographer, session, config, fold="test"):
+        lexicographer, session, config, fold="val"):
     h0, z0, _ = session.run(model.zero_state(1, tf.float32))
 
     count = config.evaluator.n_episodes

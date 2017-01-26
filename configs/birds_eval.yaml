@@ -4,6 +4,7 @@ task:
   name: BirdsRefTask
   train: false
   lexicon: true
+  visualize: true
   calibrate: true
   evaluate: true
   turkify: true
@@ -22,13 +23,14 @@ model:
   discount: 0.9
   step_size: 0.003
   message_cost: 0.0
-  load: debug
+  feature_depth: 1
+  load: birds_train
 
 translator:
   name: GenBeliefTranslator
   n_hidden: 128
-  step_size: 0.003
-  normalization: global
+  step_size: 0.0003
+  normalization: local
 
 trainer:
   n_replay_episodes: 500
@@ -38,6 +40,16 @@ trainer:
   n_timeout: 3
   good_fraction: 0.1
   n_iters: 10000
+  n_desc_iters: 10000
   n_update_iters: 100
   n_distractors: 1
   resume: false
+
+lexicographer:
+  c_agent: 0
+  l_agent: 1
+  mode: belief
+
+evaluator:
+  simulate_l: false
+  n_episodes: 200

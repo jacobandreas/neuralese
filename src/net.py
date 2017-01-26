@@ -16,8 +16,8 @@ def mlp(t_in, widths, final_nonlinearity=False):
 
         t_layer = batch_matmul(prev_layer, v_w) + v_b
         if final_nonlinearity or i_layer < len(widths) - 1:
-            #t_layer = tf.nn.relu(t_layer)
-            t_layer = tf.nn.tanh(t_layer)
+            t_layer = tf.nn.relu(t_layer)
+            #t_layer = tf.nn.tanh(t_layer)
         prev_layer = t_layer
         prev_width = width
     return prev_layer, weights

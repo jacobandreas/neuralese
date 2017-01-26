@@ -134,13 +134,14 @@ def run(task, rollout_ph, reconst_ph, model, desc_model, translator, session,
     h0, z0, _ = session.run(model.zero_state(1, tf.float32))
     states = []
     codes = []
-    l_msgs = task.lexicon
+    l_msgs = task.lexicon[1:]
     try:
         while True:
             replay = []
             trainer._do_rollout(
                     task, rollout_ph, model, desc_model, replay, [], session,
                     config, 10000, h0, z0, "val")
+            #replay = [task.get_demonstration("val")]
 
             for episode in replay:
                 for experience in episode[1:]:
