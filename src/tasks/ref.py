@@ -3,7 +3,7 @@ from experience import Experience
 import numpy as np
 
 class RefState(object):
-    def __init__(self, left, right, target, desc, empty_desc, left_data, right_data, first):
+    def __init__(self, left, right, target, desc, empty_desc, left_data, right_data, first, success):
         self.left = left
         self.right = right
         self.target = target
@@ -13,6 +13,7 @@ class RefState(object):
         self.real_desc = desc
         self.empty_desc = empty_desc
         self.first = first
+        self.success = success
         assert target in (0, 1), "invalid target ID"
 
     # speaker observation
@@ -41,11 +42,15 @@ class RefState(object):
         assert action_a == 0
         succ = RefState(
                 self.left, self.right, self.target, self.real_desc,
-                self.empty_desc, self.left_data, self.right_data, first=False)
+                self.empty_desc, self.left_data, self.right_data, first=False,
+                success=False)
         if self.first and action_b < 2:
             return succ, 0, True
         if action_b < 2:
-            reward = 1 if action_b == self.target else 0
+            reward = 0
+            if action_b == self.target:
+                reward = 1
+                succ.success = True
             return succ, reward, True
         return succ, -.1, False
 
@@ -62,11 +67,11 @@ class RefTask(object):
         if self.random.rand() < 0.5:
             return RefState(
                     target, distractor, 0, desc, self.empty_desc, left_data,
-                    right_data, first=True)
+                    right_data, first=True, success=False)
         else:
             return RefState(
                     distractor, target, 1, desc, self.empty_desc, left_data,
-                    right_data, first=True)
+                    right_data, first=True, success=False)
 
     def get_demonstration(self, fold):
         state1 = self.get_instance(fold)
@@ -91,6 +96,6 @@ class RefTask(object):
             out.append((
                 RefState(
                     state.left, state.right, tgt, None, None, state.left_data,
-                    state.right_data, state.first),
+                    state.right_data, state.first, success=False),
                 0.5))
         return out

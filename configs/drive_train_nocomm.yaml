@@ -1,48 +1,45 @@
-name: birds_eval
+name: drive_train_nocomm
 
 task: 
-  name: BirdsRefTask
-  train: false
-  lexicon: true
-  visualize: true
-  calibrate: true
-  evaluate: true
-  turkify: true
+  name: DriveTask
+  train: true
+  lexicon: false
+  visualize: false
+  calibrate: false
+  evaluate: false
+  turkify: false
 
 channel:
   name: GaussianChannel
-  normalize: true
-  #n_msg: 64
   n_msg: 128
-  #std: 0.3
-  std: 0
+  normalize: true
+  std: 0.0
 
 model: 
   name: RecurrentQModel
   n_hidden: 256
   n_embed: 64
-  communicate: true
+  feature_depth: 1
+  communicate: false
   discount: 0.9
   step_size: 0.003
   message_cost: 0.0
-  feature_depth: 1
-  load: birds_train
 
 translator:
   name: GenBeliefTranslator
   n_hidden: 128
   step_size: 0.0003
-  normalization: local
+  normalization: global
 
 trainer:
-  n_replay_episodes: 500
+  n_replay_episodes: 5000
   n_batch_episodes: 256
   n_rollout_episodes: 1
-  n_batch_history: 3
-  n_timeout: 3
-  good_fraction: 0.1
-  n_iters: 10000
-  n_desc_iters: 10000
+  n_batch_history: 10
+  n_timeout: 20
+  good_fraction: 0.0
+  n_iters: 40000
+  n_desc_iters: 0
   n_update_iters: 100
   n_distractors: 1
   resume: false
@@ -54,4 +51,4 @@ lexicographer:
 
 evaluator:
   simulate_l: false
-  n_episodes: 200
+  n_episodes: 50

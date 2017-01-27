@@ -64,11 +64,11 @@ def _do_tr_rollout(
 
     return (sum(e.r for ep in episodes for e in ep) * 1. / 
                 config.trainer.n_rollout_episodes, 
-            sum(e.r for ep in episodes for e in ep if e.r > 0) * 1. /
+            sum(ep[-1].s2.success for ep in episodes) * 1. /
                 config.trainer.n_rollout_episodes)
 
 def run(task, rollout_ph, replay_ph, reconst_ph, model, desc_model,
-        lexicographer, session, config, fold="val"):
+        lexicographer, session, config, fold="test"):
     h0, z0, _ = session.run(model.zero_state(1, tf.float32))
 
     count = config.evaluator.n_episodes

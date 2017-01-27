@@ -48,10 +48,21 @@ def run(task, rollout_ph, replay_ph, reconst_ph, model, desc_model, translator,
             total_score = 0.
             total_loss = 0.
             session.run(model.oo_update_target)
-            saver.save(session, config.experiment_dir + "/model")
 
-            #if (i_iter + 1) % (2 * config.trainer.n_update_iters) == 0:
-            if False:
+            #if not replay[-1][-1].s2.success:
+            #    logging.info("\n" + task.visualize(replay[-1][0].s1, 0))
+            #    logging.info("\n" + task.visualize(replay[-1][0].s1, 1))
+            #    logging.info("")
+            #    logging.info(str([c.goal for c in replay[-1][0].s1.cars]))
+            #    logging.info(str([c.pos for c in replay[-1][0].s1.cars]))
+            #    for tr in replay[-1]:
+            #        logging.info(str([c.pos for c in tr.s2.cars]))
+
+            if (i_iter + 1) % (10 * config.trainer.n_update_iters) == 0:
+                saver.save(session, config.experiment_dir + "/model")
+
+            if (i_iter + 1) % (2 * config.trainer.n_update_iters) == 0:
+            #if False:
                 import lexicographer
                 import evaluator
                 import calibrator
@@ -132,7 +143,7 @@ def _do_rollout(
     del good_replay[:-config.trainer.n_replay_episodes]
     return (sum(e.r for ep in episodes for e in ep) * 1. / 
                 config.trainer.n_rollout_episodes, 
-            sum(e.r for ep in episodes for e in ep if e.r > 0) * 1. /
+            sum(ep[-1].s2.success for ep in episodes) * 1. /
                 config.trainer.n_rollout_episodes)
 
 #@profile

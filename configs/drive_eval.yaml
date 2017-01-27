@@ -1,38 +1,55 @@
-name: drive_lex
+name: drive_eval
 
 task: 
   name: DriveTask
   train: false
   lexicon: true
+  visualize: true
+  calibrate: false
+  evaluate: false
+  turkify: false
 
 channel:
   name: GaussianChannel
-  n_msg: 32
+  n_msg: 128
   normalize: true
-  std: 0.5
+  std: 0.0
 
 model: 
   name: RecurrentQModel
   n_hidden: 256
+  n_embed: 64
+  feature_depth: 1
   communicate: true
   discount: 0.9
   step_size: 0.003
-  message_cost: 0
+  message_cost: 0.0
   load: drive_train
 
 translator:
   name: GenBeliefTranslator
   n_hidden: 128
-  step_size: 0.003
+  step_size: 0.0003
   normalization: global
 
 trainer:
-  n_replay_episodes: 500
+  n_replay_episodes: 5000
   n_batch_episodes: 256
   n_rollout_episodes: 1
   n_batch_history: 10
-  n_timeout: 100
-  good_fraction: 0.2
-  n_iters: 100000
+  n_timeout: 20
+  good_fraction: 0.0
+  n_iters: 40000
+  n_desc_iters: 0
   n_update_iters: 100
   n_distractors: 1
+  resume: false
+
+lexicographer:
+  c_agent: 0
+  l_agent: 1
+  mode: belief
+
+evaluator:
+  simulate_l: false
+  n_episodes: 200

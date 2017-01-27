@@ -14,7 +14,8 @@ STOP = [
 class BirdsRefTask(RefTask):
     def __init__(self):
         super(BirdsRefTask, self).__init__(N_FEATURES)
-        with open("data/birds/CUB_feature_dict.p") as feature_f:
+        #with open("data/birds/CUB_feature_dict.p") as feature_f:
+        with open("data/birds/labels.p") as feature_f:
             features = pickle.load(feature_f)
         self.random = np.random.RandomState(0)
         n_raw_features, = features.values()[0].shape
@@ -23,16 +24,17 @@ class BirdsRefTask(RefTask):
         m1 = np.zeros(N_FEATURES)
         m2 = np.zeros(N_FEATURES)
         for k, v in features.items():
-            proj = np.dot(projector, v)
+            #proj = np.dot(projector, v)
+            proj = v
             m1 += proj
             m2 += proj ** 2
             proj_features[k] = proj
         m1 /= len(features)
         m2 /= len(features)
         std = np.sqrt(m2 - m1 ** 2)
-        for v in proj_features.values():
-            v -= m1
-            v /= std
+        #for v in proj_features.values():
+        #    v -= m1
+        #    v /= std
         self.features = proj_features
         self.keys = sorted(self.features.keys())
         

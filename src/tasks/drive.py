@@ -61,9 +61,21 @@ MAP_5 = """
 """
 
 #MAPS = [MAP_1, MAP_2, MAP_3, MAP_4, MAP_5]
-MAPS = [MAP_1, MAP_3, MAP_5]
-
+#MAPS = [MAP_1, MAP_3, MAP_5]
+MAPS = [MAP_1, MAP_4, MAP_5]
 MAP_SHAPE = (8, 8)
+
+#TINYMAP_1 = """
+####*##
+####.##
+#.e...*
+####.##
+####n##
+####.##
+#"""
+#
+#MAPS = [TINYMAP_1]
+#MAP_SHAPE = (6, 6)
 
 DIRS = {"n": 0, "e": 1, "s": 2, "w": 3}
 
@@ -72,6 +84,7 @@ Car = namedtuple("Car", ["pos", "dir", "goal", "done"])
 N_FEATURES = (
     len(MAPS)
     + MAP_SHAPE[0] * MAP_SHAPE[1] * 2
+    + 1
     + len(DIRS))
 
 
@@ -152,10 +165,12 @@ class DriveTask(object):
         return traces
 
     def get_demonstration(self, fold):
+        return []
         return self.demonstrations[self.random.randint(len(self.demonstrations))]
 
-    def get_instance(self, _):
-        map_id = self.random.randint(len(MAPS))
+    def get_instance(self, _, map_id=None):
+        if map_id is None:
+            map_id = self.random.randint(len(MAPS))
         map_str = MAPS[map_id]
         template = map_str.split("\n")[1:-1]
         start_indices = [
@@ -179,14 +194,27 @@ class DriveTask(object):
         return DriveState(map_id, self.roads[map_id], cars)
 
     def distractors_for(self, state, obs_agent, n_samples):
-        return [(state, 1)] * n_samples
+        out = []
+        for _ in range(n_samples):
+            pos = None
+            while pos is None:
+                pos = (self.random.randint(MAP_SHAPE[0]),
+                            self.random.randint(MAP_SHAPE[1]))
+                if not state.road[pos]:
+                    pos = None
+            inst = self.get_instance(state.map_id)
+            cars = []
+            for i_car, car in enumerate(state.cars):
+                if i_car == obs_agent:
+                    cars.append(state.cars[i_car])
+                else:
+                    cars.append(inst.cars[i_car]._replace(pos=pos))
+            out.append((DriveState(state.map_id, state.road, cars), 1))
+        return out
 
     def visualize(self, state, agent):
         draw = [[None for _ in range(MAP_SHAPE[1])] for _ in range(MAP_SHAPE[0])]
         car = state.cars[agent]
-
-        if car.done:
-            return "<pre>done</pre>"
 
         for r in range(MAP_SHAPE[0]):
             for c in range(MAP_SHAPE[1]):
@@ -195,25 +223,25 @@ class DriveTask(object):
                 else:
                     draw[r][c] = " "
 
-        r, c = car.pos
-        r2, c2 = r, c
-        draw[r][c] = "C"
-        if car.dir == 0:
-            r2 += 1
-        elif car.dir == 1:
-            c2 -= 1
-        elif car.dir == 2:
-            r2 -= 1
-        elif car.dir == 3:
-            c2 += 1
-        if 0 <= r2 < state.road.shape[0] and 0 <= c2 < state.road.shape[1]:
-            draw[r2][c2] = "C"
+        if not car.done:
+            r, c = car.pos
+            r2, c2 = r, c
+            draw[r][c] = "C"
+            if car.dir == 0:
+                r2 += 1
+            elif car.dir == 1:
+                c2 -= 1
+            elif car.dir == 2:
+                r2 -= 1
+            elif car.dir == 3:
+                c2 += 1
+            if 0 <= r2 < state.road.shape[0] and 0 <= c2 < state.road.shape[1]:
+                draw[r2][c2] = "C"
 
-        rg, cg = car.goal
-        draw[rg][cg] = "*"
+            rg, cg = car.goal
+            draw[rg][cg] = "*"
 
-        return "<pre>" + "\n".join(["".join(r) for r in draw]) + "</pre>" #\
-            #"\n" + str(hash(tuple(state.obs()[agent]))) + "</pre>"
+        return "<pre style='color: #fff; background: #000'>\n" + "\n".join(["".join(r) for r in draw]) + "\n</pre>"
 
     def pp(self, indices):
         return " ".join([self.reverse_vocab[i] for i in indices])
@@ -224,9 +252,15 @@ class DriveState(object):
         self.road = road
         self.cars = cars
         self.l_msg = [(0), (0)]
+        self._cached_obs = None
+        self.success = all(c.done for c in cars)
 
     def obs(self):
-        return tuple(self._obs(car) for car in self.cars)
+        if self._cached_obs is None:
+            self._cached_obs =  tuple(self._obs(car) for car in self.cars)
+            #o = np.concatenate([self._obs(car) for car in self.cars])
+            #self._cached_obs = tuple(o for _ in self.cars)
+        return self._cached_obs
 
     def _obs(self, car):
         map_features = np.zeros(len(MAPS))
@@ -238,11 +272,14 @@ class DriveState(object):
         direction = np.zeros((len(DIRS),))
         pos[car.pos] = 1
         goal[car.goal] = 1
+        #pos = np.array(car.pos) / MAP_SHAPE[0]
+        #goal = np.array(car.goal) / MAP_SHAPE[0]
         direction[car.dir] = 1
         return np.concatenate(
                 (map_features, 
                     #self.road.ravel(), 
-                    pos.ravel(), goal.ravel(),
+                    pos.ravel(), goal.ravel(), [car.done],
+                    #pos, goal,
                     direction))
 
     def _move(self, car, action):
@@ -282,6 +319,9 @@ class DriveState(object):
         nc = min(nc, self.road.shape[1]-1)
         nr = max(nr, 0)
         nc = max(nc, 0)
+
+        if car.done:
+            nr, nc = -1, -1
 
         return Car((nr, nc), ndir, car.goal, car.done)
 
@@ -331,24 +371,32 @@ class DriveState(object):
 
         final_cars = []
         n_success = 0
-        for car in ncars:
-            if car.pos == car.goal and not car.done:
+        n_improved = 0
+        for ocar, ncar in zip(self.cars, ncars):
+            if ncar.done:
+                final_cars.append(ncar)
+            elif ncar.pos == ncar.goal:
                 n_success += 1
-                final_cars.append(car._replace(done=True))
+                final_cars.append(ncar._replace(done=True))
             else:
-                final_cars.append(car)
+                #old_dist = np.sum(np.abs(ocar.goal - ocar.pos))
+                #new_dist = np.sum(np.abs(ncar.goal - ncar.pos))
+                old_dist = sum(abs(p-q) for p, q in zip(ocar.goal, ocar.pos))
+                new_dist = sum(abs(p-q) for p, q in zip(ncar.goal, ncar.pos))
+                n_improved += old_dist - new_dist
+                final_cars.append(ncar)
 
         reward = 0
         stop = False
         if all(car.done for car in final_cars):
             stop = True
         if crash:
-            reward -= 1
+            reward -= 2.0
             stop = True
         reward -= 0.01
         reward -= 0.5 * off
-        #reward -= 0.05 * reverse
-        reward += 0.5 * n_success
+        reward += 1.0 * n_success
+        reward += 0.1 * n_improved
 
         #print "\n".join(["".join(row) for row in draw])
         #print reward

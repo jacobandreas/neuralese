@@ -224,6 +224,7 @@ class ReplayPlaceholders(object):
         self.t_action = tuple(t_action)
         self.t_action_index = tuple(t_action_index)
 
+    #@profile
     def feed(self, episodes, task, config):
         n_batch = len(episodes)
         n_history = config.trainer.n_batch_history

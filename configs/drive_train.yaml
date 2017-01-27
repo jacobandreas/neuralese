@@ -11,9 +11,9 @@ task:
 
 channel:
   name: GaussianChannel
-  n_msg: 128
+  n_msg: 64
   normalize: true
-  std: 0.0
+  std: 0.3
 
 model: 
   name: RecurrentQModel
@@ -37,9 +37,9 @@ trainer:
   n_rollout_episodes: 1
   n_batch_history: 10
   n_timeout: 20
-  good_fraction: 0.1
+  good_fraction: 0.0
   n_iters: 40000
-  n_desc_iters: 40000
+  n_desc_iters: 0
   n_update_iters: 100
   n_distractors: 1
   resume: false
@@ -47,7 +47,7 @@ trainer:
 lexicographer:
   c_agent: 0
   l_agent: 1
-  model: belief
+  mode: belief
 
 evaluator:
   simulate_l: false
