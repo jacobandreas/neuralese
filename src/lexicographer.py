@@ -7,13 +7,43 @@ import numpy as np
 import tensorflow as tf
 
 def kl(d1, d2, w1, w2):
+    assert len(d1.shape) == len(d2.shape) == 2
+    assert len(w1.shape) == len(w2.shape) == 1
     tot = 0
-    for p1, p2, pw1, pw2 in zip(d1.ravel(), d2.ravel(), w1.ravel(), w2.ravel()):
-        tot += pw1 * pw2 * p1 * (np.log(p1) - np.log(p2))
+    for i in range(d1.shape[0]):
+        for j in range(d1.shape[1]):
+            tot += w1[i] * w2[i] * d1[i, j] * (np.log(d1[i,j])-np.log(d2[i,j]))
     return tot
+
+def fkl(d1, d2, w1, w2):
+    return kl(d1, d2, w1, w2)
+
+def rkl(d1, d2, w1, w2):
+    return kl(d2, d1, w2, w1)
 
 def skl(d1, d2, w1, w2):
     return kl(d1, d2, w1, w2) + kl(d2, d1, w2, w1)
+
+def dot(d1, d2, w1, w2):
+    return -np.dot(w1, w2)
+
+def pmi(d1, d2, w1, w2):
+    return -np.dot(w1, w2) / (np.sum(w1) * np.sum(w2))
+
+def get_comparator(mode):
+    if mode == "skl":
+        comparator = skl
+    elif mode == "fkl":
+        comparator = fkl
+    elif mode == "rkl":
+        comparator = rkl
+    elif mode == "dot":
+        comparator = dot
+    elif mode == "pmi":
+        comparator = pmi
+    else:
+        assert False
+    return comparator
 
 class Lexicographer(object):
     def __init__(self, states, codes, l_msgs, ph, translator, task, session,
@@ -51,9 +81,7 @@ class Lexicographer(object):
         for l_msg in l_msgs:
             l_beliefs, l_weights = self.compute_l_belief(l_msg)
             all_l_beliefs.append(l_beliefs)
-            all_l_weights.append(np.tile(
-                    l_weights[:, np.newaxis],
-                    (1, config.trainer.n_distractors + 1)))
+            all_l_weights.append(l_weights)
         self.l_beliefs = all_l_beliefs
         self.l_weights = all_l_weights
 
@@ -62,9 +90,7 @@ class Lexicographer(object):
         for code in codes:
             model_beliefs, model_weights = self.compute_code_belief(code)
             all_model_beliefs.append(model_beliefs)
-            all_model_weights.append(np.tile(
-                model_weights[:, np.newaxis],
-                (1, config.trainer.n_distractors + 1)))
+            all_model_weights.append(model_weights)
         self.model_beliefs = all_model_beliefs
         self.model_weights = all_model_weights
 
@@ -99,32 +125,30 @@ class Lexicographer(object):
                 feed)
         return model_beliefs, model_weights
 
-    def l_to_c(self, l_msg):
+    def l_to_c(self, l_msg, mode):
         if not l_msg.any():
             return np.zeros(self.config.channel.n_msg)
         l_belief, l_weights = self.compute_l_belief(None, raw_features=l_msg)
-        if self.config.lexicographer.mode == "belief":
-            comparator = skl
-        else:
-            assert False
+        comparator = get_comparator(mode)
         candidates = sorted(
                 range(len(self.codes)),
-                key=lambda i: comparator(l_belief, self.model_beliefs[i],
-                    l_weights, self.model_weights[i]))
+                key=lambda i: comparator(
+                    l_belief, self.model_beliefs[i],
+                    l_weights, self.model_weights[i]
+                ))
         return [self.codes[c] for c in candidates[:10]]
 
-    def c_to_l(self, code):
+    def c_to_l(self, code, mode):
         if not code.any():
             return [[0]]
         code_belief, code_weights = self.compute_code_belief(code)
-        if self.config.lexicographer.mode == "belief":
-            comparator = skl
-        else:
-            assert False
+        comparator = get_comparator(mode)
         candidates = sorted(
                 range(len(self.l_msgs)),
-                key=lambda i: comparator(self.l_beliefs[i], code_belief,
-                    self.l_weights[i], code_weights))
+                key=lambda i: comparator(
+                    code_belief, self.l_beliefs[i], 
+                    code_weights, self.l_weights[i],
+                ))
         return [self.l_msgs[c] for c in candidates[:10]]
 
 def run(task, rollout_ph, reconst_ph, model, desc_model, translator, session,

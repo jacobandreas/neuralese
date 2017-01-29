@@ -101,6 +101,9 @@ class BirdsRefTask(RefTask):
         self.empty_desc = np.zeros(len(self.lexicon))
         self.empty_desc[0] = 1
 
+    def reset_test(self):
+        self.random = np.random.RandomState(0)
+
     def get_pair(self, fold):
         fold_keys = self.folds[fold]
         i1, i2 = self.random.randint(len(fold_keys), size=2)

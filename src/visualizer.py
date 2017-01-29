@@ -25,7 +25,7 @@ def run(lex, task, config):
         belief = lex.l_beliefs[i]
         weights = lex.l_weights[i]
         str_msg = task.pp(l_msg)
-        vis_repr = belief * weights
+        vis_repr = belief * weights[:, np.newaxis]
         if np.max(vis_repr) > 0:
             vis_repr /= np.max(vis_repr)
         vis_data["descs"].append({
@@ -37,10 +37,11 @@ def run(lex, task, config):
         belief = lex.model_beliefs[i]
         weights = lex.model_weights[i]
         short_code = proj.dot(code).tolist()
-        vis_repr = belief * weights
+        vis_repr = belief * weights[:, np.newaxis]
         if np.max(vis_repr) > 0:
             vis_repr /= np.max(vis_repr)
-        trans = [[task.reverse_vocab[i] for i in t] for t in lex.c_to_l(code)]
+        trans = [[task.reverse_vocab[i] for i in t] 
+                for t in lex.c_to_l(code, config.lexicographer.mode)]
         trans = ", ".join([" ".join(t) for t in trans])
         vis_data["codes"].append({
             "value": short_code,

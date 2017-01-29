@@ -22,11 +22,11 @@ class RefState(object):
 
     def obs_a(self):
         if self.target == 0:
-            return np.concatenate((self.left, np.zeros(self.right.shape), [self.first]))
-            #return np.concatenate((self.left, self.right, [self.first]))
+            #return np.concatenate((self.left, np.zeros(self.right.shape), [self.first]))
+            return np.concatenate((self.left, self.right, [self.first]))
         else:
-            return np.concatenate((self.right, np.zeros(self.left.shape), [self.first]))
-            #return np.concatenate((self.right, self.left, [self.first]))
+            #return np.concatenate((self.right, np.zeros(self.left.shape), [self.first]))
+            return np.concatenate((self.right, self.left, [self.first]))
 
     # listener observation
     def obs_b(self):

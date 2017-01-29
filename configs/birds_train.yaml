@@ -12,10 +12,10 @@ task:
 channel:
   name: GaussianChannel
   normalize: true
-  #n_msg: 64
-  n_msg: 128
-  #std: 0.3
-  std: 0
+  n_msg: 64
+  #n_msg: 128
+  std: 0.3
+  #std: 0
 
 model: 
   name: RecurrentQModel

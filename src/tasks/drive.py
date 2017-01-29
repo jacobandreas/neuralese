@@ -1,6 +1,6 @@
 from experience import Experience
 
-from collections import namedtuple
+from collections import defaultdict, namedtuple
 import json
 import numpy as np
 import os
@@ -60,9 +60,10 @@ MAP_5 = """
 ##...###
 """
 
-#MAPS = [MAP_1, MAP_2, MAP_3, MAP_4, MAP_5]
-#MAPS = [MAP_1, MAP_3, MAP_5]
-MAPS = [MAP_1, MAP_4, MAP_5]
+N_LEX = 155
+
+MAPS = [MAP_1, MAP_2, MAP_3, MAP_4, MAP_5]
+#MAPS = [MAP_1, MAP_4, MAP_5]
 MAP_SHAPE = (8, 8)
 
 #TINYMAP_1 = """
@@ -115,6 +116,53 @@ class DriveTask(object):
 
     def load_traces(self):
         traces = []
+
+        ngrams = defaultdict(lambda: 0)
+
+        def tokenize(d):
+            return (d.lower()
+                    .replace(".", "")
+                    .replace(",", "")
+                    .replace("?", "")
+                    .split())
+
+        for filename in os.listdir("data/drive/server_logs"):
+            if not filename.endswith("json"):
+                continue
+            with open("data/drive/server_logs/" + filename) as trace_f:
+                data = json.load(trace_f)
+
+            inputs = data[1::2]
+            for inp1, inp2 in inputs:
+                t1, t2 = tokenize(inp1["message"]), tokenize(inp2["message"])
+                for i in range(len(t1) - 2):
+                    ngrams[tuple(t1[i:i+3])] += 1
+                for i in range(len(t2) - 2):
+                    ngrams[tuple(t2[i:i+3])] += 1
+
+        for ngram, count in ngrams.items():
+            if count < 2:
+                continue
+            for word in ngram:
+                if word in self.vocab:
+                    continue
+                index = len(self.vocab)
+                self.vocab[word] = index
+                self.reverse_vocab[index] = word
+            self.lexicon.append([self.vocab[w] for w in ngram])
+
+        assert len(self.lexicon) == N_LEX, str(len(self.lexicon))
+
+        def make_rep(tokens):
+            rep = np.zeros(len(self.lexicon))
+            for i_l, l in enumerate(self.lexicon):
+                if all(self.reverse_vocab[w] in tokens for w in l):
+                    rep[i_l] = 1
+            if not rep.any():
+                rep[0] = 1
+            rep /= np.sum(rep)
+            return rep
+
         for filename in os.listdir("data/drive/server_logs"):
             if not filename.endswith("json"):
                 continue
@@ -144,19 +192,12 @@ class DriveTask(object):
             episode = []
             for inp1, inp2 in inputs:
                 action = (inp1["action"], inp2["action"])
-                def tokenize(d):
-                    d = d.lower().replace(".", "").replace(",", "").split()
-                    out = []
-                    for w in d:
-                        if w not in self.vocab:
-                            self.vocab[w] = len(self.vocab)
-                        out.append(self.vocab[w])
-                    return out
                 d1 = tokenize(inp1["message"])
                 d2 = tokenize(inp2["message"])
-                desc = (d2, d1)
+                r1, r2 = make_rep(d1), make_rep(d2)
+                desc = (r1, r2)
                 state_, reward, done = state.step(action)
-                state_.l_msg = [(0), (0)] #desc
+                state_.l_msg = desc
                 episode.append(Experience(
                     state, None, action, state_, None, reward, done))
                 state = state_
@@ -165,7 +206,6 @@ class DriveTask(object):
         return traces
 
     def get_demonstration(self, fold):
-        return []
         return self.demonstrations[self.random.randint(len(self.demonstrations))]
 
     def get_instance(self, _, map_id=None):
@@ -251,7 +291,7 @@ class DriveState(object):
         self.map_id = map_id
         self.road = road
         self.cars = cars
-        self.l_msg = [(0), (0)]
+        self.l_msg = [np.zeros(N_LEX), np.zeros(N_LEX)]
         self._cached_obs = None
         self.success = all(c.done for c in cars)
 

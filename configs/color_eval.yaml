@@ -47,8 +47,8 @@ trainer:
 lexicographer:
   c_agent: 0
   l_agent: 1
-  mode: belief
+  mode: rkl
 
 evaluator:
   simulate_l: false
-  n_episodes: 200
+  n_episodes: 512

@@ -38,10 +38,8 @@ trainer:
   n_batch_history: 3
   n_timeout: 3
   good_fraction: 0.1
-  #n_iters: 1600
   n_iters: 2000
-  #n_desc_iters: 2300
-  n_desc_iters: 3000
+  n_desc_iters: 2000
   n_update_iters: 100
   n_distractors: 1
   resume: false

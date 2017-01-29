@@ -86,8 +86,11 @@ class GenBeliefTranslator(object):
 
             optimizer = tf.train.AdamOptimizer(config.translator.step_size)
 
-            varz = self.v_model + self.v_desc
-
-            self.t_loss = self.t_desc_loss + self.t_model_loss
-            self.t_train_op = optimizer.minimize(
-                    self.t_loss, var_list=varz)
+            #varz = self.v_model + self.v_desc
+            #self.t_loss = self.t_desc_loss + self.t_model_loss
+            #self.t_train_op = optimizer.minimize(
+            #        self.t_loss, var_list=varz)
+            self.t_train_model_op = optimizer.minimize(
+                    self.t_model_loss, var_list=self.v_model)
+            self.t_train_desc_op = optimizer.minimize(
+                    self.t_desc_loss, var_list=self.v_desc)

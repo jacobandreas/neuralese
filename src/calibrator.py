@@ -55,6 +55,7 @@ def run(task, rollout_ph, model, desc_model, lexicographer, session, config):
                 hs = hs_
 
     logging.info("[cal]  \t" + str(actor_agree))
+    logging.info("")
 
     with open(config.experiment_dir + "/calibrate.txt", "w") as cal_f:
         print >>cal_f, "speaker agreement", speaker_agree

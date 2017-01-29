@@ -12,10 +12,10 @@ task:
 channel:
   name: GaussianChannel
   normalize: true
-  #n_msg: 64
-  n_msg: 128
-  #std: 0.3
-  std: 0
+  n_msg: 64
+  #n_msg: 128
+  std: 0.3
+  #std: 0
 
 model: 
   name: RecurrentQModel
@@ -50,8 +50,8 @@ trainer:
 lexicographer:
   c_agent: 0
   l_agent: 1
-  mode: belief
+  mode: dot
 
 evaluator:
   simulate_l: false
-  n_episodes: 200
+  n_episodes: 512

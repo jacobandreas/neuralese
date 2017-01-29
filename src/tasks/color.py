@@ -100,6 +100,9 @@ class ColorRefTask(RefTask):
 
         self.image_counter = 0
 
+    def reset_test(self):
+        self.randoms["test"] = np.random.RandomState(0)
+
     def get_pair(self, fold):
         colors = self.colors[fold]
         reps = self.reps[fold]

@@ -13,7 +13,7 @@ def _sample_ref(
             [model.tt_rollout_h, model.tt_rollout_z, model.tt_rollout_q],
             rollout_ph.feed(hs, zs, dhs, [state], task, config))
     code = zs_[0][0, :]
-    l_descs = code_to_desc(code)[:5]
+    l_descs = code_to_desc(code, config.lexicographer.mode)[:5]
     l_ens = [" ".join(task.reverse_vocab[w] for w in d) for d in l_descs]
     l_en = "; ".join(l_ens)
     return state, l_en, state.target

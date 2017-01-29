@@ -61,7 +61,8 @@ def run(task, rollout_ph, replay_ph, reconst_ph, model, desc_model, translator,
             if (i_iter + 1) % (10 * config.trainer.n_update_iters) == 0:
                 saver.save(session, config.experiment_dir + "/model")
 
-            if (i_iter + 1) % (2 * config.trainer.n_update_iters) == 0:
+            if (i_iter + 1) % (10 * config.trainer.n_update_iters) == 0:
+            #if True:
             #if False:
                 import lexicographer
                 import evaluator
@@ -83,7 +84,7 @@ def load(session, config):
 #@profile
 def _do_rollout(
         task, rollout_ph, model, desc_model, replay, good_replay, session,
-        config, i_iter, h0, z0, fold="train"):
+        config, i_iter, h0, z0, fold="train", use_desc=False):
     worlds = [task.get_instance(fold) for _ in range(config.trainer.n_rollout_episodes)]
     done = [False] * config.trainer.n_rollout_episodes
     episodes = [[] for i in range(config.trainer.n_rollout_episodes)]
@@ -103,7 +104,8 @@ def _do_rollout(
                 continue
             actions = []
             used_qs = qs
-            #used_qs = dqs
+            if use_desc:
+                used_qs = dqs
             for q in used_qs:
                 q = q[i, :]
                 # TODO configurable
@@ -154,7 +156,7 @@ def _do_step(
     n_any = config.trainer.n_batch_episodes - n_good
     if (len(replay) < n_any or len(good_replay) < n_good
             or len(demonstrations) < config.trainer.n_batch_episodes):
-        return [0, 0, 0]
+        return [0, 0, 0, 0]
     episodes = []
     desc_episodes = []
     for _ in range(n_good):
@@ -174,20 +176,20 @@ def _do_step(
         sl = ep[offset:offset+config.trainer.n_batch_history]
         slices.append(sl)
 
-    model_loss = tr_loss = 0
+    model_loss = tr_m_loss = tr_d_loss = 0
     if update_model:
         feed = replay_ph.feed(slices, task, config)
         model_loss, _ = session.run([model.t_loss, model.t_train_op], feed)
 
-        tr_feed = reconst_ph.feed(
+        tr_m_feed = reconst_ph.feed(
                 [e[random.randint(len(e))] for e in slices], 1, 0, task, config)
-        #if np.random.randint(20) == 0:
-        #    t_dist, = session.run(
-        #            [translator.t_dist], tr_feed)
-        #    print tr_feed[reconst_ph.t_xa_true][0]
-        #    print t_dist[0]
-        tr_loss, _ = session.run(
-                [translator.t_loss, translator.t_train_op], tr_feed)
+        tr_m_loss, _ = session.run(
+                [translator.t_model_loss, translator.t_train_model_op], tr_m_feed)
+        tr_d_feed = reconst_ph.feed(
+                [e[random.randint(len(e))] for e in desc_episodes], 1, 0, task,
+                config)
+        tr_d_loss, _ = session.run(
+                [translator.t_desc_loss, translator.t_train_desc_op], tr_d_feed)
 
     desc_loss = 0
     if update_desc:
@@ -195,4 +197,4 @@ def _do_step(
         desc_loss, _ = session.run(
                 [desc_model.t_loss, desc_model.t_train_op], desc_feed)
 
-    return [model_loss, desc_loss, tr_loss]
+    return [model_loss, desc_loss, tr_m_loss, tr_d_loss]
