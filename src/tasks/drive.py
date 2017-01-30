@@ -60,23 +60,11 @@ MAP_5 = """
 ##...###
 """
 
-N_LEX = 155
+N_LEX = 83
+#N_LEX = 2
 
 MAPS = [MAP_1, MAP_2, MAP_3, MAP_4, MAP_5]
-#MAPS = [MAP_1, MAP_4, MAP_5]
 MAP_SHAPE = (8, 8)
-
-#TINYMAP_1 = """
-####*##
-####.##
-#.e...*
-####.##
-####n##
-####.##
-#"""
-#
-#MAPS = [TINYMAP_1]
-#MAP_SHAPE = (6, 6)
 
 DIRS = {"n": 0, "e": 1, "s": 2, "w": 3}
 
@@ -96,10 +84,13 @@ class DriveTask(object):
         self.symmetric = True
         self.n_actions = (4, 4)
         self.n_features = N_FEATURES
-        self.n_vocab = 1
-        self.vocab = {"_": 0, "UNK": 1}
-        self.reverse_vocab = {0: "_", 1: "UNK"}
-        self.lexicon = [[0]]
+        #self.vocab = {"_": 0, "UNK": 1}
+        #self.reverse_vocab = {0: "_", 1: "UNK"}
+        #self.lexicon = [[0]]
+
+        self.vocab = {"_": 0, "UNK": 1, "done": 2}
+        self.reverse_vocab = {0: "_", 1: "UNK", 2: "done"}
+        self.lexicon = [[0], [2]]
 
         self.roads = []
         for map_str in MAPS:
@@ -113,6 +104,9 @@ class DriveTask(object):
         self.demonstrations = self.load_traces()
         #self.max_desc_len = max(len(d) for dem in self.demonstrations for ex in
         #        dem for d in ex.s1.desc)
+
+    def reset_test(self):
+        pass
 
     def load_traces(self):
         traces = []
@@ -135,13 +129,22 @@ class DriveTask(object):
             inputs = data[1::2]
             for inp1, inp2 in inputs:
                 t1, t2 = tokenize(inp1["message"]), tokenize(inp2["message"])
-                for i in range(len(t1) - 2):
-                    ngrams[tuple(t1[i:i+3])] += 1
-                for i in range(len(t2) - 2):
-                    ngrams[tuple(t2[i:i+3])] += 1
+                if len(t1) <= 3:
+                    ngrams[tuple(t1)] += 1
+                if len(t2) <= 3:
+                    ngrams[tuple(t2)] += 1
+                #for i in range(len(t1) - 2):
+                #    ngrams[tuple(t1[i:i+3])] += 1
+                #for i in range(len(t2) - 2):
+                #    ngrams[tuple(t2[i:i+3])] += 1
+
+        #freq = sorted(ngrams.items(), key=lambda p: -p[1])
+        #for f in freq:
+        #    print f
+        #exit()
 
         for ngram, count in ngrams.items():
-            if count < 2:
+            if count <= 3:
                 continue
             for word in ngram:
                 if word in self.vocab:
@@ -195,7 +198,10 @@ class DriveTask(object):
                 d1 = tokenize(inp1["message"])
                 d2 = tokenize(inp2["message"])
                 r1, r2 = make_rep(d1), make_rep(d2)
-                desc = (r1, r2)
+                desc = (r2, r1)
+                #r1 = [0, 1] if state.cars[1].done else [1, 0]
+                #r2 = [0, 1] if state.cars[0].done else [1, 0]
+                desc = (np.asarray(r1), np.asarray(r2))
                 state_, reward, done = state.step(action)
                 state_.l_msg = desc
                 episode.append(Experience(
@@ -242,13 +248,13 @@ class DriveTask(object):
                             self.random.randint(MAP_SHAPE[1]))
                 if not state.road[pos]:
                     pos = None
-            inst = self.get_instance(state.map_id)
+            inst = self.get_instance(None, state.map_id)
             cars = []
             for i_car, car in enumerate(state.cars):
                 if i_car == obs_agent:
                     cars.append(state.cars[i_car])
                 else:
-                    cars.append(inst.cars[i_car]._replace(pos=pos))
+                    cars.append(inst.cars[i_car]._replace(pos=pos, dir=self.random.randint(4)))
             out.append((DriveState(state.map_id, state.road, cars), 1))
         return out
 

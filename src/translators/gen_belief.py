@@ -29,6 +29,7 @@ class GenBeliefTranslator(object):
                         tf.square(t_all_mean-tf.expand_dims(reconst_ph.t_z, 1)),
                         axis=2)
                 if config.translator.normalization == "global":
+                    assert False, "you probably don't want this"
                     t_model_rs_belief = tf.nn.softmax(tf.reshape(
                             t_model_raw_belief, (1, -1)))
                     self.t_model_belief = tf.reshape(
@@ -39,7 +40,8 @@ class GenBeliefTranslator(object):
                             (config.trainer.n_batch_episodes,))
                 elif config.translator.normalization == "local":
                     self.t_model_belief = tf.nn.softmax(t_model_raw_belief)
-                    self.t_model_weights = tf.nn.softmax(t_model_logprob)
+                    #self.t_model_weights = tf.nn.softmax(t_model_logprob)
+                    self.t_model_logweights = t_model_logprob
                 else:
                     assert False
 
@@ -47,6 +49,7 @@ class GenBeliefTranslator(object):
                 t_dist, self.v_desc = net.mlp(
                         t_xa_true_drop,
                         (config.translator.n_hidden, len(task.lexicon)))
+                        #(len(task.lexicon),))
                 self.t_dist = t_dist
                 t_desc_logprob = -tf.nn.softmax_cross_entropy_with_logits(
                         t_dist, reconst_ph.t_l_msg)
@@ -63,6 +66,7 @@ class GenBeliefTranslator(object):
                 t_all_dist, _ = net.mlp(
                         t_xa_drop,
                         (config.translator.n_hidden, len(task.lexicon)))
+                        #(len(task.lexicon),))
                 t_all_scores = -tf.nn.softmax_cross_entropy_with_logits(
                         t_all_dist, t_msg_tile)
 
@@ -80,7 +84,8 @@ class GenBeliefTranslator(object):
                             (config.trainer.n_batch_episodes,))
                 elif config.translator.normalization == "local":
                     self.t_desc_belief = tf.nn.softmax(t_all_scores)
-                    self.t_desc_weights = tf.nn.softmax(t_desc_logprob)
+                    #self.t_desc_weights = tf.nn.softmax(t_desc_logprob)
+                    self.t_desc_logweights = t_desc_logprob
                 else:
                     assert False
 

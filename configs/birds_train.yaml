@@ -1,4 +1,4 @@
-name: birds_train
+name: birds_train_blind
 
 task: 
   name: BirdsRefTask

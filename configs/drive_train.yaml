@@ -29,7 +29,7 @@ translator:
   name: GenBeliefTranslator
   n_hidden: 128
   step_size: 0.0003
-  normalization: global
+  normalization: local
 
 trainer:
   n_replay_episodes: 5000

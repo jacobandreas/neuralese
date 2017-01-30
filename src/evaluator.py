@@ -91,7 +91,8 @@ def run(task, rollout_ph, replay_ph, reconst_ph, model, desc_model,
                     config, 10000, h0, z0, fold, use_desc=False)
             c_c_score += score
         c_c_score /= count
-        logging.info("[c,c]  \t%s\n" % str(c_c_score))
+        logging.info("[c,c]  \t%s" % str(c_c_score))
+        logging.info("")
         print >>eval_f, "c only:"
         print >>eval_f, c_c_score
 

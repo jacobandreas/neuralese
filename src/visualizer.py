@@ -1,5 +1,6 @@
-import numpy as np
 import json
+import numpy as np
+from scipy.misc import logsumexp
 
 random = np.random.RandomState(0)
 N_PROJ = 18
@@ -23,7 +24,8 @@ def run(lex, task, config):
 
     for i, l_msg in enumerate(lex.l_msgs):
         belief = lex.l_beliefs[i]
-        weights = lex.l_weights[i]
+        norm = logsumexp(lex.l_weights[i])
+        weights = np.exp(lex.l_weights[i] - norm)
         str_msg = task.pp(l_msg)
         vis_repr = belief * weights[:, np.newaxis]
         if np.max(vis_repr) > 0:
@@ -35,7 +37,8 @@ def run(lex, task, config):
 
     for i, code in enumerate(lex.codes[:10]):
         belief = lex.model_beliefs[i]
-        weights = lex.model_weights[i]
+        norm = logsumexp(lex.model_weights[i])
+        weights = np.exp(lex.model_weights[i] - norm)
         short_code = proj.dot(code).tolist()
         vis_repr = belief * weights[:, np.newaxis]
         if np.max(vis_repr) > 0:

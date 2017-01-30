@@ -4,16 +4,15 @@ from util import Break
 
 import json
 import numpy as np
+from scipy.misc import logsumexp
 import tensorflow as tf
 
 def kl(d1, d2, w1, w2):
     assert len(d1.shape) == len(d2.shape) == 2
     assert len(w1.shape) == len(w2.shape) == 1
-    tot = 0
-    for i in range(d1.shape[0]):
-        for j in range(d1.shape[1]):
-            tot += w1[i] * w2[i] * d1[i, j] * (np.log(d1[i,j])-np.log(d2[i,j]))
-    return tot
+    denom = logsumexp(w1 + w2)
+    weights = np.exp(w1 + w2 - denom)
+    return np.sum(weights[:, np.newaxis] * d1 * (np.log(d1) - np.log(d2)))
 
 def fkl(d1, d2, w1, w2):
     return kl(d1, d2, w1, w2)
@@ -25,10 +24,12 @@ def skl(d1, d2, w1, w2):
     return kl(d1, d2, w1, w2) + kl(d2, d1, w2, w1)
 
 def dot(d1, d2, w1, w2):
-    return -np.dot(w1, w2)
+    #return -np.dot(w1, w2)
+    return -logsumexp(w1 + w2)
 
 def pmi(d1, d2, w1, w2):
-    return -np.dot(w1, w2) / (np.sum(w1) * np.sum(w2))
+    #return -np.dot(w1, w2) / (np.sum(w1) * np.sum(w2))
+    return -logsumexp(w1 + w2) + logsumexp(w1) + logsumexp(w2)
 
 def get_comparator(mode):
     if mode == "skl":
@@ -108,7 +109,7 @@ class Lexicographer(object):
             self.ph.t_l_msg: l_data
         }
         l_beliefs, l_weights = self.session.run(
-                [self.translator.t_desc_belief, self.translator.t_desc_weights],
+                [self.translator.t_desc_belief, self.translator.t_desc_logweights],
                 feed)
         return l_beliefs, l_weights
 
@@ -121,7 +122,7 @@ class Lexicographer(object):
             self.ph.t_z: code_data
         }
         model_beliefs, model_weights = self.session.run(
-                [self.translator.t_model_belief, self.translator.t_model_weights],
+                [self.translator.t_model_belief, self.translator.t_model_logweights],
                 feed)
         return model_beliefs, model_weights
 
@@ -158,13 +159,15 @@ def run(task, rollout_ph, reconst_ph, model, desc_model, translator, session,
     h0, z0, _ = session.run(model.zero_state(1, tf.float32))
     states = []
     codes = []
-    l_msgs = task.lexicon[1:]
+    #l_msgs = task.lexicon[1:]
+    l_msgs = task.lexicon
     try:
         while True:
             replay = []
-            trainer._do_rollout(
+            rew = trainer._do_rollout(
                     task, rollout_ph, model, desc_model, replay, [], session,
                     config, 10000, h0, z0, "val")
+            #print rew[1]
             #replay = [task.get_demonstration("val")]
 
             for episode in replay:
@@ -172,11 +175,30 @@ def run(task, rollout_ph, reconst_ph, model, desc_model, translator, session,
                     codes.append(experience.m1[1][config.lexicographer.c_agent])
                     states.append(experience.s1)
                     if len(states) >= config.trainer.n_batch_episodes:
+                    #if len(states) > 2000:
                         raise Break()
     except Break:
         pass
 
+    ###from sklearn.decomposition import PCA
+    ###from sklearn.manifold import TSNE
+    ###import matplotlib
+    ###matplotlib.use("Agg")
+    ###import matplotlib.pyplot as plt
+    ###proj = PCA(2)
+    ####proj = TSNE(2)
+    ###proj_codes = proj.fit_transform(codes)
+    ###fig, ax = plt.subplots(nrows=1, ncols=1)
+    ###ax.scatter(proj_codes[:, 0], proj_codes[:, 1])
+    ###fig.savefig("fig.png")
+    ###plt.close(fig)
+    ###print proj_codes.shape
+    ####print proj_codes
+    ####print l_msgs
+    ####exit()
+
     codes = codes[:50]
+    #states = states[:256]
 
     return Lexicographer(
             states, codes, l_msgs, reconst_ph, translator, task, session,
