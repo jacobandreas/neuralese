@@ -6,7 +6,7 @@ task:
   lexicon: true
   visualize: true
   calibrate: false
-  evaluate: false
+  evaluate: true
   turkify: false
 
 channel:
@@ -48,7 +48,7 @@ trainer:
 lexicographer:
   c_agent: 0
   l_agent: 1
-  mode: rkl
+  mode: pmi
 
 evaluator:
   simulate_l: false

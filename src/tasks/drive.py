@@ -79,7 +79,12 @@ N_FEATURES = (
 
 class DriveTask(object):
     def __init__(self):
-        self.random = np.random.RandomState(0)
+        #self.random = np.random.RandomState(0)
+        self.randoms = {
+            "train": np.random.RandomState(1290),
+            "val": np.random.RandomState(1482),
+            "test": np.random.RandomState(9424)
+        }
         self.n_agents = 2
         self.symmetric = True
         self.n_actions = (4, 4)
@@ -101,12 +106,14 @@ class DriveTask(object):
                     road[r, c] = 0 if template[r][c] == "#" else 1
             self.roads.append(road)
 
-        self.demonstrations = self.load_traces()
+        self.train_demonstrations, self.test_demonstrations = self.load_traces()
+        self.test_counter = 0
         #self.max_desc_len = max(len(d) for dem in self.demonstrations for ex in
         #        dem for d in ex.s1.desc)
 
     def reset_test(self):
-        pass
+        self.randoms["val"] = np.random.RandomState(1482)
+        self.randoms["test"] = np.random.RandomState(9424)
 
     def load_traces(self):
         traces = []
@@ -159,7 +166,7 @@ class DriveTask(object):
         def make_rep(tokens):
             rep = np.zeros(len(self.lexicon))
             for i_l, l in enumerate(self.lexicon):
-                if all(self.reverse_vocab[w] in tokens for w in l):
+                if len(l) > 0 and all(self.reverse_vocab[w] in tokens for w in l):
                     rep[i_l] = 1
             if not rep.any():
                 rep[0] = 1
@@ -201,7 +208,7 @@ class DriveTask(object):
                 desc = (r2, r1)
                 #r1 = [0, 1] if state.cars[1].done else [1, 0]
                 #r2 = [0, 1] if state.cars[0].done else [1, 0]
-                desc = (np.asarray(r1), np.asarray(r2))
+                #desc = (np.asarray(r1), np.asarray(r2))
                 state_, reward, done = state.step(action)
                 state_.l_msg = desc
                 episode.append(Experience(
@@ -209,14 +216,27 @@ class DriveTask(object):
                 state = state_
 
             traces.append(episode)
-        return traces
+
+        train_traces = traces[:-100]
+        test_traces = traces[-100:]
+        return train_traces, test_traces
 
     def get_demonstration(self, fold):
-        return self.demonstrations[self.random.randint(len(self.demonstrations))]
+        if fold in ("train", "val"):
+            demos = self.train_demonstrations
+            i = self.randoms[fold].randint(len(demos))
+        else:
+            assert fold == "test"
+            demos = self.test_demonstrations
+            i = self.test_counter
+            self.test_counter += 1
+            self.test_counter %= len(demos)
+        return demos[i]
 
-    def get_instance(self, _, map_id=None):
+    def get_instance(self, fold, map_id=None):
+        random = self.randoms[fold]
         if map_id is None:
-            map_id = self.random.randint(len(MAPS))
+            map_id = random.randint(len(MAPS))
         map_str = MAPS[map_id]
         template = map_str.split("\n")[1:-1]
         start_indices = [
@@ -226,13 +246,13 @@ class DriveTask(object):
                 (r, c) for r in range(MAP_SHAPE[0]) for c in range(MAP_SHAPE[1])
                 if template[r][c] == "*"]
 
-        agent1_start = start_indices[self.random.randint(len(start_indices))]
+        agent1_start = start_indices[random.randint(len(start_indices))]
         agent1_dir = DIRS[template[agent1_start[0]][agent1_start[1]]]
         start_indices.remove(agent1_start)
-        agent2_start = start_indices[self.random.randint(len(start_indices))]
+        agent2_start = start_indices[random.randint(len(start_indices))]
         agent2_dir = DIRS[template[agent2_start[0]][agent2_start[1]]]
-        agent1_goal = goal_indices[self.random.randint(len(goal_indices))]
-        agent2_goal = goal_indices[self.random.randint(len(goal_indices))]
+        agent1_goal = goal_indices[random.randint(len(goal_indices))]
+        agent2_goal = goal_indices[random.randint(len(goal_indices))]
 
         cars = [Car(agent1_start, agent1_dir, agent1_goal, False),
                 Car(agent2_start, agent2_dir, agent2_goal, False)]
@@ -240,21 +260,22 @@ class DriveTask(object):
         return DriveState(map_id, self.roads[map_id], cars)
 
     def distractors_for(self, state, obs_agent, n_samples):
+        random = self.randoms["val"]
         out = []
         for _ in range(n_samples):
             pos = None
             while pos is None:
-                pos = (self.random.randint(MAP_SHAPE[0]),
-                            self.random.randint(MAP_SHAPE[1]))
+                pos = (random.randint(MAP_SHAPE[0]),
+                            random.randint(MAP_SHAPE[1]))
                 if not state.road[pos]:
                     pos = None
-            inst = self.get_instance(None, state.map_id)
+            inst = self.get_instance("val", state.map_id)
             cars = []
             for i_car, car in enumerate(state.cars):
                 if i_car == obs_agent:
                     cars.append(state.cars[i_car])
                 else:
-                    cars.append(inst.cars[i_car]._replace(pos=pos, dir=self.random.randint(4)))
+                    cars.append(inst.cars[i_car]._replace(pos=pos, dir=random.randint(4)))
             out.append((DriveState(state.map_id, state.road, cars), 1))
         return out
 

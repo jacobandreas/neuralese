@@ -92,15 +92,16 @@ class ReconstructionPlaceholders(object):
                     task.n_features))
 
         for i, experience in enumerate(experiences):
-            state = experience.s1
-            xb[i, :] = state.obs()[obs_agent]
-            if experience.m1 is not None:
-                message = experience.m1[1][hidden_agent]
+            state1 = experience.s1
+            state2 = experience.s2
+            xb[i, :] = state2.obs()[obs_agent]
+            if experience.m2 is not None:
+                message = experience.m2[1][hidden_agent]
                 z[i, :] = message
-            l_msg[i, :] = state.l_msg[obs_agent]
-            xa_true[i, :] = state.obs()[hidden_agent]
+            l_msg[i, :] = state2.l_msg[obs_agent]
+            xa_true[i, :] = state1.obs()[hidden_agent]
             distractors = task.distractors_for(
-                    state, obs_agent, config.trainer.n_distractors)
+                    state1, obs_agent, config.trainer.n_distractors)
             for i_dis in range(config.trainer.n_distractors):
                 dis, prob = distractors[i_dis]
                 xa_noise[i, i_dis, :] = dis.obs()[hidden_agent]

@@ -31,6 +31,9 @@ def pmi(d1, d2, w1, w2):
     #return -np.dot(w1, w2) / (np.sum(w1) * np.sum(w2))
     return -logsumexp(w1 + w2) + logsumexp(w1) + logsumexp(w2)
 
+def rand(d1, d2, w1, w2):
+    return np.random.random()
+
 def get_comparator(mode):
     if mode == "skl":
         comparator = skl
@@ -42,6 +45,8 @@ def get_comparator(mode):
         comparator = dot
     elif mode == "pmi":
         comparator = pmi
+    elif mode == "rand":
+        comparator = rand
     else:
         assert False
     return comparator
@@ -128,7 +133,8 @@ class Lexicographer(object):
 
     def l_to_c(self, l_msg, mode):
         if not l_msg.any():
-            return np.zeros(self.config.channel.n_msg)
+            assert False
+            return [np.zeros(self.config.channel.n_msg)]
         l_belief, l_weights = self.compute_l_belief(None, raw_features=l_msg)
         comparator = get_comparator(mode)
         candidates = sorted(
@@ -155,6 +161,7 @@ class Lexicographer(object):
 def run(task, rollout_ph, reconst_ph, model, desc_model, translator, session,
         config):
     assert task.n_agents == 2
+    random = np.random.RandomState(3951)
 
     h0, z0, _ = session.run(model.zero_state(1, tf.float32))
     states = []
@@ -171,12 +178,18 @@ def run(task, rollout_ph, reconst_ph, model, desc_model, translator, session,
             #replay = [task.get_demonstration("val")]
 
             for episode in replay:
-                for experience in episode[1:]:
-                    codes.append(experience.m1[1][config.lexicographer.c_agent])
-                    states.append(experience.s1)
-                    if len(states) >= config.trainer.n_batch_episodes:
-                    #if len(states) > 2000:
-                        raise Break()
+                #exp = episode[1+random.randint(len(episode)-1)]
+                exp = episode[random.randint(len(episode))]
+                codes.append(exp.m2[1][config.lexicographer.c_agent])
+                states.append(exp.s1)
+                #for experience in episode[1:]:
+                #    codes.append(experience.m1[1][config.lexicographer.c_agent])
+                #    states.append(experience.s1)
+                #    if len(states) >= config.trainer.n_batch_episodes:
+                #    #if len(states) > 2000:
+                #        raise Break()
+                if len(states) >= config.trainer.n_batch_episodes:
+                    raise Break()
     except Break:
         pass
 

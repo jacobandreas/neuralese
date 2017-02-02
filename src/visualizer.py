@@ -27,7 +27,8 @@ def run(lex, task, config):
         norm = logsumexp(lex.l_weights[i])
         weights = np.exp(lex.l_weights[i] - norm)
         str_msg = task.pp(l_msg)
-        vis_repr = belief * weights[:, np.newaxis]
+        #vis_repr = belief * weights[:, np.newaxis]
+        vis_repr = np.tile(weights[:, np.newaxis], (1, 2))
         if np.max(vis_repr) > 0:
             vis_repr /= np.max(vis_repr)
         vis_data["descs"].append({
@@ -40,7 +41,8 @@ def run(lex, task, config):
         norm = logsumexp(lex.model_weights[i])
         weights = np.exp(lex.model_weights[i] - norm)
         short_code = proj.dot(code).tolist()
-        vis_repr = belief * weights[:, np.newaxis]
+        #vis_repr = belief * weights[:, np.newaxis]
+        vis_repr = np.tile(weights[:, np.newaxis], (1, 2))
         if np.max(vis_repr) > 0:
             vis_repr /= np.max(vis_repr)
         trans = [[task.reverse_vocab[i] for i in t] 

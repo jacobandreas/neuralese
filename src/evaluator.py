@@ -1,4 +1,5 @@
 from experience import Experience
+from tasks.ref import RefTask
 import trainer
 
 import json
@@ -6,6 +7,69 @@ import logging
 import numpy as np
 import tensorflow as tf
 
+def _do_deaf_rollout(
+        code_agent, desc_agent, task, rollout_ph, model, desc_to_code, session,
+        config, h0, z0, fold, mode):
+    demos = [task.get_demonstration(fold) for _ in range(config.trainer.n_rollout_episodes)]
+    worlds = [d[0].s1 for d in demos]
+    done = [False] * config.trainer.n_rollout_episodes
+    episodes = [[] for i in range(config.trainer.n_rollout_episodes)]
+    hs, zs = h0, z0
+    dhs = h0
+
+    empty = np.zeros(len(task.lexicon))
+    empty[0] = 1
+    last_desc = [empty] * config.trainer.n_rollout_episodes
+
+    for t in range(config.trainer.n_timeout):
+        hs_, zs_, qs = session.run(
+                [model.tt_rollout_h, model.tt_rollout_z, model.tt_rollout_q],
+                rollout_ph.feed(hs, zs, dhs, worlds, task, config))
+        for i in range(config.trainer.n_rollout_episodes):
+            if done[i]:
+                continue
+
+            actions = [None, None]
+            actions[code_agent] = np.argmax(qs[code_agent][i, :])
+            if t < len(demos[i]):
+                actions[desc_agent] = demos[i][t].a[desc_agent]
+            else:
+                actions[desc_agent] = 0
+
+            world_, reward, done_ = worlds[i].step(actions)
+
+            if t < len(demos[i]):
+                desc = demos[i][t].s2.l_msg[code_agent]
+                last_desc[i] = desc
+            else:
+                desc = last_desc[i]
+                #desc = np.zeros(len(task.lexicon))
+                #desc[0] = 1
+
+            #code = desc_to_code(desc, mode)[0]
+            codes = desc_to_code(desc, mode)
+            #code = np.mean(codes, axis=0)
+            code = codes[np.random.randint(len(codes))]
+            #code = np.random.choice(desc_to_code(desc, mode))
+
+            #print(str(desc))
+            #print(str(code[:5]))
+            zs_[desc_agent][i, :] = code
+
+            episodes[i].append(Experience(
+                worlds[i], None, tuple(actions), world_, None, reward, done_))
+            worlds[i] = world_
+            done[i] = done_
+
+        hs = hs_
+        zs = zs_
+        if all(done):
+            break
+
+    return (sum(e.r for ep in episodes for e in ep) * 1. / 
+                config.trainer.n_rollout_episodes, 
+            sum(ep[-1].s2.success for ep in episodes) * 1. /
+                config.trainer.n_rollout_episodes)
 
 def _do_tr_rollout(
         code_agent, desc_agent, task, rollout_ph, model, desc_model,
@@ -68,7 +132,10 @@ def run(task, rollout_ph, replay_ph, reconst_ph, model, desc_model,
         lexicographer, session, config, fold="test"):
     h0, z0, _ = session.run(model.zero_state(1, tf.float32))
 
-    count = config.evaluator.n_episodes
+    if isinstance(task, RefTask):
+        count = config.evaluator.n_episodes
+    else:
+        count = 100
 
     with open(config.experiment_dir + "/eval.txt", "w") as eval_f:
         task.reset_test()
@@ -96,28 +163,34 @@ def run(task, rollout_ph, replay_ph, reconst_ph, model, desc_model,
         print >>eval_f, "c only:"
         print >>eval_f, c_c_score
 
-        for mode in ["fkl", "rkl", "pmi", "dot"]:
+        for mode in ["fkl", "rkl", "pmi", "dot", "rand"]:
+            print >>eval_f, mode + ":"
+
             task.reset_test()
             c_l_score = np.asarray([0., 0.])
             for i in range(count):
-                score = _do_tr_rollout(
-                        0, 1, task, rollout_ph, model, desc_model, lexicographer.l_to_c,
-                        lexicographer.c_to_l, session, config, h0, z0, fold, mode)
+                if isinstance(task, RefTask):
+                    score = _do_tr_rollout(
+                            0, 1, task, rollout_ph, model, desc_model, lexicographer.l_to_c,
+                            lexicographer.c_to_l, session, config, h0, z0, fold, mode)
+                else:
+                    score = _do_deaf_rollout(
+                            0, 1, task, rollout_ph, model, lexicographer.l_to_c, 
+                            session, config, h0, z0, fold, mode)
                 c_l_score += score
             c_l_score /= count
+            print >>eval_f, "(c, l)", c_l_score
             logging.info("[c,l:%s]  \t%s" % (mode, str(c_l_score)))
 
-            task.reset_test()
-            l_c_score = np.asarray([0., 0.])
-            for i in range(count):
-                score = _do_tr_rollout(
-                        1, 0, task, rollout_ph, model, desc_model, lexicographer.l_to_c,
-                        lexicographer.c_to_l, session, config, h0, z0, fold, mode)
-                l_c_score += score
-            l_c_score /= count
-            logging.info("[l,c:%s]  \t%s" % (mode, str(l_c_score)))
-            logging.info("")
-
-            print >>eval_f, mode + ":"
-            print >>eval_f, "(c, l)", c_l_score
-            print >>eval_f, "(l, c)", l_c_score
+            if isinstance(task, RefTask):
+                task.reset_test()
+                l_c_score = np.asarray([0., 0.])
+                for i in range(count):
+                    score = _do_tr_rollout(
+                            1, 0, task, rollout_ph, model, desc_model, lexicographer.l_to_c,
+                            lexicographer.c_to_l, session, config, h0, z0, fold, mode)
+                    l_c_score += score
+                l_c_score /= count
+                print >>eval_f, "(l, c)", l_c_score
+                logging.info("[l,c:%s]  \t%s" % (mode, str(l_c_score)))
+                logging.info("")

@@ -61,9 +61,9 @@ def run(task, rollout_ph, replay_ph, reconst_ph, model, desc_model, translator,
             if (i_iter + 1) % (10 * config.trainer.n_update_iters) == 0:
                 saver.save(session, config.experiment_dir + "/model")
 
-            #if (i_iter + 1) % (10 * config.trainer.n_update_iters) == 0:
+            if (i_iter + 1) % (10 * config.trainer.n_update_iters) == 0:
             #if True:
-            if False:
+            #if False:
                 import lexicographer
                 import evaluator
                 import calibrator
