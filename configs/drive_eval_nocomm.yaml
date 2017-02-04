@@ -1,4 +1,4 @@
-name: drive_eval
+name: drive_eval_nocomm
 
 task: 
   name: DriveTask
@@ -20,11 +20,11 @@ model:
   n_hidden: 256
   n_embed: 64
   feature_depth: 1
-  communicate: true
+  communicate: false
   discount: 0.9
   step_size: 0.003
   message_cost: 0.0
-  load: drive_train
+  load: drive_train_nocomm
 
 translator:
   name: GenBeliefTranslator
@@ -52,4 +52,4 @@ lexicographer:
 
 evaluator:
   simulate_l: false
-  n_episodes: 100
+  n_episodes: 200

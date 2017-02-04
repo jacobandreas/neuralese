@@ -193,4 +193,5 @@ def run(task, rollout_ph, replay_ph, reconst_ph, model, desc_model,
                 l_c_score /= count
                 print >>eval_f, "(l, c)", l_c_score
                 logging.info("[l,c:%s]  \t%s" % (mode, str(l_c_score)))
-                logging.info("")
+
+            logging.info("")

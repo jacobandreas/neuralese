@@ -14,6 +14,7 @@ import lexicographer
 import visualizer
 import calibrator
 import evaluator
+import sem_evaluator
 import turkifier
 
 import logging
@@ -65,6 +66,9 @@ def main():
         evaluator.run(
                 task, rollout_ph, replay_ph, reconst_ph, model, desc_model, lex,
                 session, config)
+        sem_evaluator.run(
+                task, rollout_ph, reconst_ph, model, desc_model, translator,
+                lex, session, config)
 
     if config.task.turkify:
         turkifier.run(task, rollout_ph, model, lex, session, config)
