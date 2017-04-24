@@ -1,13 +1,13 @@
-name: birds_eval
+name: birds_vis
 
 task: 
   name: BirdsRefTask
   train: false
   lexicon: true
   visualize: true
-  calibrate: true
-  evaluate: true
-  turkify: true
+  calibrate: false
+  evaluate: false
+  turkify: false
 
 channel:
   name: GaussianChannel
@@ -50,7 +50,7 @@ trainer:
 lexicographer:
   c_agent: 0
   l_agent: 1
-  mode: dot
+  mode: rkl
 
 evaluator:
   simulate_l: false

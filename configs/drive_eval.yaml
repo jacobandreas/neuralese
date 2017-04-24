@@ -1,4 +1,4 @@
-name: drive_eval
+name: drive_vis
 
 task: 
   name: DriveTask
@@ -6,7 +6,7 @@ task:
   lexicon: true
   visualize: true
   calibrate: false
-  evaluate: true
+  evaluate: false
   turkify: false
 
 channel:
@@ -48,7 +48,7 @@ trainer:
 lexicographer:
   c_agent: 0
   l_agent: 1
-  mode: pmi
+  mode: rkl
 
 evaluator:
   simulate_l: false

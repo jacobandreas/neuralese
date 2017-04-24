@@ -51,4 +51,4 @@ lexicographer:
 
 evaluator:
   simulate_l: false
-  n_episodes: 50
+  n_episodes: 100
