@@ -34,8 +34,9 @@ def pmi(d1, d2, w1, w2):
     #return -np.dot(w1, w2) / (np.sum(w1) * np.sum(w2))
     return -logsumexp(w1 + w2) + logsumexp(w1) + logsumexp(w2)
 
+random = np.random.RandomState(7846)
 def rand(d1, d2, w1, w2):
-    return np.random.random()
+    return random.rand()
 
 def get_comparator(mode):
     if mode == "skl":

@@ -1,13 +1,13 @@
-name: drive_vis
+name: drive_eval
 
 task: 
   name: DriveTask
   train: false
   lexicon: true
   visualize: true
-  calibrate: false
-  evaluate: false
-  turkify: false
+  calibrate: true
+  evaluate: true
+  turkify: true
 
 channel:
   name: GaussianChannel

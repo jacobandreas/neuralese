@@ -5,7 +5,7 @@ import numpy as np
 import os
 import tensorflow as tf
 
-random = np.random.RandomState(0)
+random = np.random.RandomState(5828)
 
 #@profile
 def run(task, rollout_ph, replay_ph, reconst_ph, model, desc_model, translator,
@@ -166,7 +166,7 @@ def _do_step(
         episodes.append(replay[random.randint(len(replay))])
     for _ in range(config.trainer.n_batch_episodes):
         demo = demonstrations[random.randint(len(demonstrations))]
-        offset = np.random.randint(max(1, len(demo)-config.trainer.n_batch_history))
+        offset = random.randint(max(1, len(demo)-config.trainer.n_batch_history))
         sl = demo[offset:offset+config.trainer.n_batch_history]
         desc_episodes.append(sl)
 

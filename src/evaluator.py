@@ -7,6 +7,8 @@ import logging
 import numpy as np
 import tensorflow as tf
 
+random = np.random.RandomState(4813)
+
 def _do_deaf_rollout(
         code_agent, desc_agent, task, rollout_ph, model, desc_to_code, session,
         config, h0, z0, fold, mode):
@@ -49,7 +51,7 @@ def _do_deaf_rollout(
             #code = desc_to_code(desc, mode)[0]
             codes = desc_to_code(desc, mode)
             #code = np.mean(codes, axis=0)
-            code = codes[np.random.randint(len(codes))]
+            code = codes[random.randint(len(codes))]
             #code = np.random.choice(desc_to_code(desc, mode))
 
             #print(str(desc))
@@ -135,7 +137,8 @@ def run(task, rollout_ph, replay_ph, reconst_ph, model, desc_model,
     if isinstance(task, RefTask):
         count = config.evaluator.n_episodes
     else:
-        count = 100
+        #count = 100
+        count = 500
 
     with open(config.experiment_dir + "/eval.txt", "w") as eval_f:
         task.reset_test()

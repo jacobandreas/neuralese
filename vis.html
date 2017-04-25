@@ -1,0 +1,181 @@
+<html>
+  <head>
+    <script type="text/javascript"
+            src="https://code.jquery.com/jquery-3.1.1.min.js"></script>
+    <script type="text/javascript">
+var DATA;
+
+function loadData(data) {
+  DATA = data;
+  var states = data.states;
+  for (var i = 0; i < states.length; i++) {
+    var div = $("<div></div>")
+      .append("<p class='score'>??</p>")
+      .append(states[i])
+      .attr("class", "state")
+      .attr("id", "state" + i);
+    $("#states").append(div);
+  }
+
+  var distractors = data.distractors;
+  for (var i = 0; i < distractors.length; i++) {
+    var div = $("<div></div>")
+      .attr("class", "distractor")
+      .attr("id", "distractor" + i);
+    for (var j = 0; j < distractors[i].length; j++) {
+      $(div).append("<p class='score'>??</p>");
+      $(div).append(distractors[i][j]);
+    }
+    $("#distractors").append(div);
+  }
+
+  var descs = data.descs;
+  for (var i = 0; i < descs.length; i++) {
+    var div = $("<div></div>")
+      .append(descs[i].value)
+      .attr("class", "desc")
+      .attr("id", "desc" + i);
+    $(div).click(function(i_) {
+      return function() { showDesc(i_); };
+    }(i));
+    $("#descs").append(div);
+  }
+
+  var codes = data.codes;
+  for (var i = 0; i < codes.length; i++) {
+    var code = codes[i].value;
+    var codeblock = $("<span></span>");
+    //for (var j = 0; j < code.length; j += 3) {
+    for (var j = 0; j < code.length; j++) {
+      var codecell = $("<span class='codecell'></span>");
+      r = g = b = Math.trunc(255 / (1 + Math.exp(-code[j])));
+      // r = Math.trunc(255 / (1 + Math.exp(-code[j])));
+      // g = Math.trunc(255 / (1 + Math.exp(-code[j+1])));
+      // b = Math.trunc(255 / (1 + Math.exp(-code[j+2])));
+      var color = "rgb(" + r + "," + g + "," + b + ")";
+      //codecell.text(color);
+      codecell.css("background-color", color);
+      codeblock.append(codecell);
+    }
+    var div = $("<div></div>")
+      .append(codeblock)
+      .append("<p>" + codes[i].trans + "</p>")
+      //.append(codes[i].value)
+      //.append(codes[i].fkl).append(codes[i].rkl).append(codes[i].tvd)
+      .attr("class", "code")
+      .attr("id", "code" + i);
+    $(div).click(function(i_) {
+      return function() { showCode(i_); }
+    }(i));
+    $("#codes").append(div);
+  }
+}
+
+function showHelper(name, score) {
+  var elem = $(name);
+  elem.css("opacity", score);
+  elem.find(".score").text(score);
+}
+
+function showDesc(iDesc) {
+  $(".focused").removeClass("focused");
+  $("#desc" + iDesc).addClass("focused");
+  scores = DATA["descs"][iDesc]["repr"];
+  for (var i = 0; i < scores.length; i++) {
+    showHelper("#state" + i, scores[i][0]);
+    if (scores[i].length > 1) {
+      showHelper("#distractor" + i, scores[i][1]);
+    } else {
+      alert("weird");
+    }
+  }
+}
+
+function showCode(iCode) {
+  $(".focused").removeClass("focused");
+  $("#code" + iCode).addClass("focused");
+  scores = DATA["codes"][iCode]["repr"];
+  for (var i = 0; i < scores.length; i++) {
+    showHelper("#state" + i, scores[i][0]);
+    if (scores[i].length > 1) {
+      showHelper("#distractor" + i, scores[i][1]);
+    }
+  }
+}
+
+$(document).ready(function() {
+  $.getJSON("vis.json", loadData);
+});
+    </script>
+
+    <link href="https://fonts.googleapis.com/css?family=Roboto+Mono" rel="stylesheet">
+    <style type="text/css">
+body {
+  font-family: "Roboto Mono", monospace;
+}
+
+.column {
+  padding: .5em;
+  float: left;
+  height: 100%;
+  overflow: auto;
+}
+
+#states img, #distractors img {
+  width: 180px;
+  height: 180px;
+  object-position: center;
+  object-fit: cover;
+}
+
+.score {
+  text-align: center;
+  width: 3em;
+  margin: 0 0 -2em 0;
+  position: relative;
+  background: rgba(255, 255, 255, 0.67);
+  padding: 0.5em;
+  display: None;
+}
+
+#descs div, #codes div {
+  padding: 0.5em;
+}
+
+#descs div:hover, #codes div:hover {
+  outline: 1px solid #bbb;
+}
+
+#descs div.focused {
+  background: #ff8;
+}
+
+#codes div.focused {
+  background: #acf;
+}
+
+td.sep {
+  padding-right: 1em;
+}
+
+.codecell {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+}
+    </style>
+  </head>
+
+  <body>
+    <div id="content">
+      <div class="column">
+        <table>
+          <td class="sep"><div id="states"></div></td>
+          <td><div id="distractors"></div></td>
+        </table>
+      </div>
+      <div class="column" id="descs"></div>
+      <div class="column" id="codes"></div>
+    </div>
+  </body>
+</html>
