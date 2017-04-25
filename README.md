@@ -58,12 +58,12 @@ by an `eval_X` script.
 
 #### Evaluation
 
-This will appear in the log file when evaluation is turned on in
-the config. The belief-matching criterion from our paper is called `rkl`, while
-the translation criterion is called `dot`. Lines of the form [x,y:model] show
-results of the pragmatic evaluation: the first number is reward and the second
-is task completion. Lines of the form [x-y] show results of the semantic
-evaluation.
+This will appear in the log file when evaluation is turned on in the config. The
+belief-matching criterion from our paper is called `rkl`, while the translation
+criterion is called `dot`. Lines of the form `[c,l:model]` show results of the
+pragmatic evaluation: the first number is reward and the second is task
+completion.  Lines of the form `[c-l]` show results of the semantic evaluation.
+`c` and `l` designate neuralese and natural language speakers respectively. 
 
 #### Visualization
 
