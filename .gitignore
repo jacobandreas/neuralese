@@ -92,7 +92,7 @@ ENV/
 *.sw[po]
 
 # cached data
-data/
+#data/
 
 # experiment transients
 saves/

@@ -10,8 +10,11 @@ import tensorflow as tf
 def kl(d1, d2, w1, w2):
     assert len(d1.shape) == len(d2.shape) == 2
     assert len(w1.shape) == len(w2.shape) == 1
-    denom = logsumexp(w1 + w2)
-    weights = np.exp(w1 + w2 - denom)
+
+    raw_weights = logsumexp([w1, w2], axis=0)
+    denom = logsumexp(raw_weights)
+    weights = np.exp(raw_weights - denom)
+
     return np.sum(weights[:, np.newaxis] * d1 * (np.log(d1) - np.log(d2)))
 
 def fkl(d1, d2, w1, w2):
